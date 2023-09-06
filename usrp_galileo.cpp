@@ -216,8 +216,6 @@ void usage(char *progname)
         "  -e <Ephemeris>   RINEX navigation file for Galileo ephemerides (required)\n"
         "  -n <Navmsg Dir>  Dir containing navigation messages\n"
         "  -o <File sink>   File to store IQ samples\n"
-        "  -u <user_motion> User motion file (dynamic mode)\n"
-        "  -g <nmea_gga>    NMEA GGA stream (dynamic mode)\n"
         "  -l <location>    Lat,Lon,Hgt (static mode) e.g. 35.274,137.014,100\n"
         "  -t <date,time>   Scenario start time YYYY/MM/DD,hh:mm:ss\n"
         "  -T <date,time>   Overwrite TOC and TOE to scenario start time\n"
@@ -245,7 +243,6 @@ int main(int argc, char *argv[])
 
     s.finished = false;
     s.opt.navfile[0] = 0;
-    s.opt.umfile[0] = 0;
     s.opt.tvfile[0] = 0;
     s.opt.outfile[0] = 0;
 
@@ -253,8 +250,6 @@ int main(int argc, char *argv[])
     s.opt.g0.sec = 0.0;
     s.opt.iduration = USER_MOTION_SIZE;
     s.opt.verb = FALSE;
-    s.opt.nmeaGGA = FALSE;
-    s.opt.staticLocationMode = TRUE;
     s.opt.llh[0] = 42.3601;
     s.opt.llh[1] = -71.0589;
     s.opt.llh[2] = 2;
@@ -299,23 +294,7 @@ int main(int argc, char *argv[])
             strcpy(s.opt.outfile, optarg);
             break;
 
-        case 'u':
-            strcpy(s.opt.umfile, optarg);
-            s.opt.nmeaGGA = FALSE;
-            s.opt.staticLocationMode = FALSE;
-            break;
-
-        case 'g':
-            strcpy(s.opt.umfile, optarg);
-            s.opt.nmeaGGA = TRUE;
-            s.opt.staticLocationMode = FALSE;
-            break;
-
         case 'l':
-            // Static geodetic coordinates input mode
-            // Added by scateu@gmail.com
-            s.opt.nmeaGGA = FALSE;
-            s.opt.staticLocationMode = TRUE;
             sscanf(optarg, "%lf,%lf,%lf", &s.opt.llh[0], &s.opt.llh[1],
                    &s.opt.llh[2]);
             break;
@@ -423,13 +402,6 @@ int main(int argc, char *argv[])
     {
         printf("[+] File sink not specified. Using galileosim.bin\n");
         snprintf(s.opt.outfile, sizeof(s.opt.outfile), "galileosim.ishort");
-    }
-
-    if (s.opt.umfile[0] == 0 && !s.opt.staticLocationMode)
-    {
-        printf("ERROR: User motion file / NMEA GGA stream is not specified.\n");
-        printf("You may use -l to specify the static location directly.\n");
-        exit(1);
     }
 
     // Initialize simulator

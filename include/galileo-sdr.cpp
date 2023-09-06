@@ -1572,11 +1572,8 @@ void *galileo_task(void *arg)
 
     int iumd;
     int numd;
-    char umfile[MAX_CHAR];
-    double xyz[USER_MOTION_SIZE][3];
 
-    int staticLocationMode = FALSE;
-    int nmeaGGA = FALSE;
+    double xyz[USER_MOTION_SIZE][3];
 
     char navfile[MAX_CHAR];
     char outfile[MAX_CHAR];
@@ -1615,7 +1612,6 @@ void *galileo_task(void *arg)
     ////////////////////////////////////////////////////////////
 
     strcpy(navfile, s->opt.navfile);
-    strcpy(umfile, s->opt.umfile);
     strcpy(tv_file, s->opt.tvfile);
     strcpy(outfile, s->opt.outfile);
 
@@ -1623,8 +1619,6 @@ void *galileo_task(void *arg)
     g0.sec = s->opt.g0.sec;
 
     gal2date(&g0, &t0);
-
-    nmeaGGA = s->opt.nmeaGGA;
 
     iduration = USER_MOTION_SIZE;
 
@@ -1647,8 +1641,6 @@ void *galileo_task(void *arg)
     duration = s->opt.iduration / 10.0;
 
     use_bits_from_streamer = s->opt.use_bit_stream;
-
-    staticLocationMode = s->opt.staticLocationMode;
 
     llh[0] = s->opt.llh[0];
     llh[1] = s->opt.llh[1];
