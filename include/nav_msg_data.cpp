@@ -590,17 +590,6 @@ vector<ephem_t> load_ephemeris(const char *fname)
 	FILE *fp;
 	fp = fopen(fname, "rt");
 
-	// if (NULL == (fp = fopen(fname, "rt")))
-	// {
-	// 	printf("\nERROR: Can't open test vectors");
-	// 	return 0;
-	// }
-
-	/*
-		Initialize ephem vector
-		This vector contains MAX_SAT vectors that hold ephemeris records for each satellite.
-	*/
-
 	int index = 0;
 
 	vector<ephem_t> eph_vector;
@@ -619,9 +608,6 @@ vector<ephem_t> load_ephemeris(const char *fname)
 
 		sscanf(str, "%lf,%d,%d,%99s", &galtime.sec, &galtime.week, &satid, nav_msg);
 
-		// fprintf(stderr,"\nTime %f : ",s);
-		// for(int i = 0; i < 60; i++)
-		//     fprintf(stderr,"%c",nav_msg[i]);
 		if (strlen(nav_msg) != 60)
 		{
 			continue;
@@ -641,8 +627,6 @@ vector<ephem_t> load_ephemeris(const char *fname)
 		/* Extract wordtype */
 		wordtype = data_extract_uint32_t(nav_msg_uint8, 2, 6);
 
-		// fprintf(stderr,"\n Word %d", wordtype);
-
 		/* Updates the ephemeris of only the current satellite. At word 5 it will increment the current_eph_index value by 1 */
 		extract_ephemeris(&nav_msg_uint8, &eph_vector[index], wordtype, satid);
 
@@ -650,7 +634,7 @@ vector<ephem_t> load_ephemeris(const char *fname)
 
 		if (eph_vector[index].vflg == 1)
 		{
-			write_csv(&eph_vector[index], satid);
+			//write_csv(&eph_vector[index], satid);
 			index++;
 			blank_eph = {0};
 			eph_vector.push_back(blank_eph);
