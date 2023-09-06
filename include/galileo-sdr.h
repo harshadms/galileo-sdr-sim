@@ -1547,7 +1547,7 @@ constexpr char GALILEO_E1_C_PRIMARY_CODE[GALILEO_E1_NUMBER_OF_CODES][1024] = {
 
 ///////////////////////////////////////////////
 
-const float SAMP_RATE = 2.5e6;
+const float SAMP_RATE = 2.6e6;
 
 // Conventional values employed in GPS ephemeris model (ICD-GPS-200)
 #define GM_EARTH 3.986005e14
@@ -1719,7 +1719,7 @@ void chartouint8_t(vector<uint8_t> *out, char *in, int len);
 int data_extract_signedInt(int len, int data);
 void extract_ephemeris(vector<uint8_t> *nav_msg_uint8, ephem_t *eph, uint8_t wordtype, int svid, int *eph_index);
 
-int load_ephemeris(vector<ephem_t> *eph, const char *fname);
+vector<ephem_t> load_ephemeris(const char *fname);
 int epoch_matcher(double obsTime, vector<ephem_t> eph, int index);
 
 vector<uint8_t> load_page(FILE *TV_ptr, int prn, bool advance_fptr, int tow, galtime_t *g);

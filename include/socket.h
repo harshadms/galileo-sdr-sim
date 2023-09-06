@@ -118,11 +118,11 @@ void *bitstreamer_thread(vector<queue<int>> &queues, map<int, int> &sm, bool *ex
     double a;
     while (1)
     {
-        //a = get_nanos2();
+        // a = get_nanos2();
         udprecv(s, raw_bits, INCOMING_SIZE * sizeof(double));
-        //cerr << "\nTime - " << (get_nanos2() - a)/1e6 <<endl;
-        
-        for (int i = 0; i < (INCOMING_SIZE-1); i++)
+        // cerr << "\nTime - " << (get_nanos2() - a)/1e6 <<endl;
+
+        for (int i = 0; i < (INCOMING_SIZE - 1); i++)
         {
             content = (int)raw_bits[i];
 
@@ -136,9 +136,9 @@ void *bitstreamer_thread(vector<queue<int>> &queues, map<int, int> &sm, bool *ex
 
             if (sm.find(sat_prn) != sm.end())
             {
-                //fprintf(stderr, "\nReceived data %d - %d - %d", sat_prn, sm->find(sat_prn)->first, sm->find(sat_prn)->second);
+                // fprintf(stderr, "\nReceived data %d - %d - %d", sat_prn, sm->find(sat_prn)->first, sm->find(sat_prn)->second);
                 assigned_chan = sm.find(sat_prn)->second;
-                
+
                 // if (sat_prn == 4)
                 //     fprintf(stderr, "\nReceived data %d - %d - %d", sat_prn, bit, assigned_chan);
 
@@ -152,14 +152,14 @@ void *bitstreamer_thread(vector<queue<int>> &queues, map<int, int> &sm, bool *ex
                 // if (sat_prn == 25)
                 //     fprintf(stderr, "\nReceived data %d - %d - %d - %d - %d", sat_prn, sm->find(sat_prn)->first, sm->find(sat_prn)->second, assigned_chan, bit);
 
-                //fprintf(stderr,"Chn %d : %d : %d\n", assigned_chan, sat_prn, queues->at(assigned_chan).front());
+                // fprintf(stderr,"Chn %d : %d : %d\n", assigned_chan, sat_prn, queues->at(assigned_chan).front());
             }
         }
 
         if (!tow_rx)
         {
-            //udprecv(s, &tow_correction, sizeof(double));
-            tow_correction = raw_bits[INCOMING_SIZE-1] / 1000.0;
+            // udprecv(s, &tow_correction, sizeof(double));
+            tow_correction = raw_bits[INCOMING_SIZE - 1] / 1000.0;
             fprintf(stderr, "\nTOW Correction %f: \n", tow_correction);
             tow_fix = true;
             tow_rx = true;
@@ -181,11 +181,15 @@ void *dt_thread(void *)
     }
 }
 
-void *locations_thread(double llhr[3])
+void *locations_thread(double llhr_init[3])
 {
     fprintf(stderr, "Listening for run-time position updates\n");
 
     int s = udpinit(7533);
+
+    llhr[0] = llhr_init[0];
+    llhr[1] = llhr_init[1];
+    llhr[2] = llhr_init[2];
 
     while (1)
     {

@@ -108,7 +108,7 @@ int is_fifo_write_ready(sim_t *s)
     int status = 0;
 
     s->sample_length = get_sample_length(s);
-    //fprintf(stderr, "\nFIFO %d - %d", s->sample_length, NUM_IQ_SAMPLES);
+    // fprintf(stderr, "\nFIFO %d - %d", s->sample_length, NUM_IQ_SAMPLES);
 
     if (s->sample_length < NUM_IQ_SAMPLES)
         status = 1;
@@ -123,9 +123,9 @@ void *tx_task(void *arg)
     size_t num_samps_sent = 0;
     size_t samples_per_buffer = SAMPLES_PER_BUFFER;
     fprintf(stderr, "\nTx task");
-    //sleep(1);
+    // sleep(1);
     int k = 0;
-    
+
     while (1)
     {
         if (stop_signal_called)
@@ -156,25 +156,24 @@ void *tx_task(void *arg)
         }
 
         k++;
-       
 
         buffs_ptr = (const void **)tx_buffer_current;
 
-        //vector<double> tx_buffer_vector; //(tx_buffer_current, tx_buffer_current + SAMPLES_PER_BUFFER);
-        // vector<complex<float>> fc_buffer;
-        // for(int i=0; i < SAMPLES_PER_BUFFER; i=i+2)
-        // {
-        //     fc_buffer.push_back(complex<float>(s->tx.buffer[i], s->tx.buffer[i+1]));// * 2], tx_buffer_current[i * 2 + 1]) );
-        //     //fprintf(stderr, "\nF - %f/ %d", s->tx.buffer[i], i);
-        // }
+        // vector<double> tx_buffer_vector; //(tx_buffer_current, tx_buffer_current + SAMPLES_PER_BUFFER);
+        //  vector<complex<float>> fc_buffer;
+        //  for(int i=0; i < SAMPLES_PER_BUFFER; i=i+2)
+        //  {
+        //      fc_buffer.push_back(complex<float>(s->tx.buffer[i], s->tx.buffer[i+1]));// * 2], tx_buffer_current[i * 2 + 1]) );
+        //      //fprintf(stderr, "\nF - %f/ %d", s->tx.buffer[i], i);
+        //  }
 
         // uhd_tx_streamer_send(s->tx.stream, s->tx.buffer_ptr, SAMPLES_PER_BUFFER, &s->tx.md, 1000, &samples_populated);
-        //printf("\nHere %ld\n", tx_buffer_vector.size());
+        // printf("\nHere %ld\n", tx_buffer_vector.size());
 
         size_t num_tx_samps = s->tx.stream->send(s->tx.buffer, SAMPLES_PER_BUFFER, s->tx.md, 1000);
-        samples_consumed = samples_consumed+num_tx_samps;
-        //fprintf(stderr, "\nSent %d", k);
-        //tx_buffer_vector.clear();
+        samples_consumed = samples_consumed + num_tx_samps;
+        // fprintf(stderr, "\nSent %d", k);
+        // tx_buffer_vector.clear();
 
         if (is_fifo_write_ready(s))
         {
@@ -186,7 +185,6 @@ void *tx_task(void *arg)
         {
             goto out;
         }
-
     }
 out:
     return NULL;
@@ -254,7 +252,7 @@ int main(int argc, char *argv[])
     s.opt.g0.week = -1;
     s.opt.g0.sec = 0.0;
     s.opt.iduration = USER_MOTION_SIZE;
-    s.opt.verb = TRUE;
+    s.opt.verb = FALSE;
     s.opt.nmeaGGA = FALSE;
     s.opt.staticLocationMode = TRUE;
     s.opt.llh[0] = 42.3601;
@@ -285,14 +283,14 @@ int main(int argc, char *argv[])
     float *buffer = NULL;
     const void **buffer_ptr = NULL;
 
-    while ((result = getopt(argc, argv, "e:n:o:u:g:l:T:t:d:G:a:p:iI:U:b")) != -1)
+    while ((result = getopt(argc, argv, "e:n:o:u:g:l:T:t:d:G:a:p:iI:U:b:v")) != -1)
     {
         switch (result)
         {
         case 'e':
             strcpy(s.opt.navfile, optarg);
             break;
-        
+
         case 'n':
             strcpy(s.opt.tvfile, optarg);
             break;
@@ -398,6 +396,10 @@ int main(int argc, char *argv[])
             s.opt.use_bit_stream = false;
             break;
 
+        case 'v':
+            s.opt.verb = true;
+            break;
+
         case ':':
 
         case '?':
@@ -445,8 +447,8 @@ int main(int argc, char *argv[])
     if (use_usrp)
     {
         // Create USRP
-        std::cout << "Creating the usrp device with: " <<  device_args << std::endl;
-        
+        std::cout << "Creating the usrp device with: " << device_args << std::endl;
+
         uhd::usrp::multi_usrp::sptr usrp = uhd::usrp::multi_usrp::make(device_args);
 
         // Lock mboard clocks
@@ -474,7 +476,7 @@ int main(int argc, char *argv[])
         usrp->set_tx_gain(gain);
         fprintf(stderr, "\nActual TX Gain: %f dB", usrp->get_tx_gain());
 
-        std::cout << "\nUsing antenna:" <<  usrp->get_tx_antenna() << std::endl;
+        std::cout << "\nUsing antenna:" << usrp->get_tx_antenna() << std::endl;
 
         // setup streamer
         uhd::stream_args_t stream_args("sc16", "sc16"); // complex floats
@@ -525,10 +527,9 @@ int main(int argc, char *argv[])
     }
     else
         printf("\nCreating Galileo task...\n");
-    
 
     if (use_usrp)
-    {    // Wait until Galileo task is initialized
+    { // Wait until Galileo task is initialized
         pthread_mutex_lock(&(s.tx.lock));
         while (!s.galileo_sim.ready)
             pthread_cond_wait(&(s.galileo_sim.initialization_done), &(s.tx.lock));
@@ -552,7 +553,7 @@ int main(int argc, char *argv[])
 
         // Running...
         printf("Running...\n"
-            "Press Ctrl+C to abort.\n");
+               "Press Ctrl+C to abort.\n");
 
         // Wainting for TX task to complete.
         pthread_join(s.tx.thread, NULL);

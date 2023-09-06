@@ -577,7 +577,7 @@ void extract_ephemeris(vector<uint8_t> *nav_msg_uint8, ephem_t *eph, uint8_t wor
 	}
 }
 
-int load_ephemeris(vector<ephem_t> *eph_vector, const char *fname)
+vector<ephem_t> load_ephemeris(const char *fname)
 {
 	char str[MAX_CHAR];
 
@@ -601,15 +601,15 @@ int load_ephemeris(vector<ephem_t> *eph_vector, const char *fname)
 		This vector contains MAX_SAT vectors that hold ephemeris records for each satellite.
 	*/
 
-	int current_eph_index[36] = {0};
+	int index = 0;
 
-	for (int i = 0; i < MAX_SAT; i++)
-	{
-		eph_vector[i] = vector<ephem_t>();
+	vector<ephem_t> eph_vector;
 
-		ephem_t eph = {0};
-		eph_vector[i].push_back(eph);
-	}
+	ephem_t blank_eph = {0};
+	eph_vector.push_back(blank_eph);
+
+	if (fp == NULL)
+		return eph_vector;
 
 	vector<uint8_t> nav_msg_uint8;
 
@@ -644,23 +644,23 @@ int load_ephemeris(vector<ephem_t> *eph_vector, const char *fname)
 		// fprintf(stderr,"\n Word %d", wordtype);
 
 		/* Updates the ephemeris of only the current satellite. At word 5 it will increment the current_eph_index value by 1 */
-		extract_ephemeris(&nav_msg_uint8, &eph_vector[satid - 1][current_eph_index[satid - 1]], wordtype, satid);
+		extract_ephemeris(&nav_msg_uint8, &eph_vector[index], wordtype, satid);
 
 		// print_eph(&eph_vector[satid-1][current_eph_index[satid-1]-1], satid);
 
-		if (eph_vector[satid - 1][current_eph_index[satid - 1]].vflg == 1)
+		if (eph_vector[index].vflg == 1)
 		{
-			write_csv(&eph_vector[satid - 1][current_eph_index[satid - 1]], satid);
-			current_eph_index[satid - 1]++;
-			ephem_t eph = {0};
-			eph_vector[satid - 1].push_back(eph);
+			write_csv(&eph_vector[index], satid);
+			index++;
+			blank_eph = {0};
+			eph_vector.push_back(blank_eph);
 		}
 
 		nav_msg_uint8.clear();
 	}
 
-	fprintf(stderr, "\nLoaded %d ephemeris entries", (int)eph_vector[2].size());
-	return eph_vector[2].size();
+	fprintf(stderr, "\nLoaded %d ephemeris entries for SV-%d", (int)eph_vector.size(), satid);
+	return eph_vector;
 }
 
 /* Matches TOW and relevant ephemeris */

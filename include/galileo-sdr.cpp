@@ -25,11 +25,12 @@
 #include <sys/stat.h>
 #include <sstream>
 #include <cmath>
+#include <signal.h>
 
 int samples_per_code;
 std::vector<int> current_eph;
 bool stop_signal_called_gal_task = false;
-bool use_cursors = false;
+bool use_cursors = true;
 bool advance_fptr = false;
 
 FILE *TV_ptr;
@@ -443,7 +444,6 @@ void codegen_E1C(short *ca, int prn)
     sboc(ca, tmp_ca, CA_SEQ_LEN_E1, 1, 1);
 }
 
-
 /*! \brief Convert a UTC date into a GAL date
  *  \param[in] t input date in UTC form
  *  \param[out] g output date GAL form
@@ -775,7 +775,6 @@ void satpos(ephem_t eph, galtime_t g, double *pos, double *vel, double *clk)
 
     return;
 }
-
 
 double subGalTime(galtime_t g1, galtime_t g0)
 {
@@ -1441,6 +1440,9 @@ int allocateChannel(channel_t *chan,
 
     for (sv = 0; sv < MAX_SAT; sv++)
     {
+        if (!eph_vector[sv][0].vflg)
+            continue;
+
         current_eph[sv] = epoch_matcher(grx.sec, eph_vector[sv], current_eph[sv]);
 
         eph = eph_vector[sv][current_eph[sv]];
@@ -1557,7 +1559,7 @@ void *galileo_task(void *arg)
 
     int i;
     channel_t chan[MAX_CHAN];
-    double elvmask = 0.0; // in degree
+    double elvmask = 10; // in degree
 
     int ip, qp;
     int iTable;
@@ -1642,8 +1644,8 @@ void *galileo_task(void *arg)
 
     use_usrp = s->opt.use_usrp;
 
-    duration = s->opt.iduration / 10.0; 
-    
+    duration = s->opt.iduration / 10.0;
+
     use_bits_from_streamer = s->opt.use_bit_stream;
 
     staticLocationMode = s->opt.staticLocationMode;
@@ -1664,23 +1666,26 @@ void *galileo_task(void *arg)
 
     // Update location via UDP Socket
     std::thread th_loc(&locations_thread, llh);
-    
+
     ////////////////////////////////////////////////////////////
     // Load navigation messages and satellite ephemeris
     ////////////////////////////////////////////////////////////
 
-    // Load file pointers to individual satellites
-    for (int i = 0; i < MAX_SAT; i++)
-    {
-        char tfname[18];
-        snprintf(tfname, sizeof(tfname), "%s/%d.csv", tv_file, 1 + 1);
-        TV_ptrs_sv[i] = fopen(tfname, "r");
-    }
-
     vector<ephem_t> eph_vector[MAX_SAT];
     ephem_t eph;
 
-    load_ephemeris(eph_vector, tv_file);
+    // Load file pointers to individual satellites
+    std::cerr << s->opt.tvfile[0];
+    if (s->opt.navfile[0] == 0 && s->opt.tvfile[0] != 0)
+    {
+        for (int sv = 0; sv < MAX_SAT; sv++)
+        {
+            char tfname[MAX_CHAR];
+            snprintf(tfname, sizeof(tfname), "%s/%d.csv", tv_file, sv + 1);
+            TV_ptrs_sv[sv] = fopen(tfname, "r");
+            eph_vector[sv] = load_ephemeris(tfname);
+        }
+    }
 
     // Keep track of current ephemeris index for each satellite
     for (int i = 0; i < MAX_SAT; i++)
@@ -1738,7 +1743,6 @@ void *galileo_task(void *arg)
     }
 
     gal2date(&gmax, &tmax);
-
 
     if (g0.week >= 0) // Scenario start time has been set.
     {
@@ -1877,7 +1881,7 @@ void *galileo_task(void *arg)
     for (sv = 0; sv < MAX_SAT; sv++)
         allocatedSat[sv] = -1;
 
-    dt = 0.10000002384200000;
+    dt = 0.10000002314200000;
 
     grx = incGalTime(grx, dt);
 
@@ -1978,6 +1982,7 @@ void *galileo_task(void *arg)
 
         llh[0] = llh[0] / R2D; // convert to RAD
         llh[1] = llh[1] / R2D; // convert to RAD
+
         llh2xyz(llh, xyz[iumd]);
 
         for (i = 0; i < MAX_CHAN; i++)
@@ -2076,11 +2081,11 @@ void *galileo_task(void *arg)
 
         // Check and update ephemeris index and satellite allocation every 30 seconds
         if ((int)fmodf(grx.sec - g0.sec, 30) == 0)
-        {   
+        {
             allocateChannel(chan, eph_vector, ionoutc, grx, xyz[iumd], elvmask, &chn_prn_map);
             for (int sv = 0; sv < MAX_SAT; sv++)
             {
-                current_eph[sv] = current_eph[sv] = epoch_matcher(grx.sec, eph_vector[sv], current_eph[sv]);
+                current_eph[sv] = epoch_matcher(grx.sec, eph_vector[sv], current_eph[sv]);
             }
         }
 
@@ -2119,15 +2124,14 @@ void *galileo_task(void *arg)
             pthread_cond_signal(&(s->fifo_read_ready));
         }
 
-        fprintf(stderr, "\rTime into run = %4.1f - %4.1ld", subGalTime(grx, g0), clock() - tstart);
-
+        //
         // Update receiver time
         if (use_bits_from_streamer)
         {
 
             llh[0] = llh[0] * R2D;
             llh[1] = llh[1] * R2D;
-            
+
             // Update time counter
             if (!local_fix && tow_fixed)
             {
@@ -2142,35 +2146,40 @@ void *galileo_task(void *arg)
             }
         }
 
-      
         if (verb == TRUE)
         {
             if (use_cursors)
             {
                 clear();
                 attron(A_REVERSE);
+                llh[0] = llh[0] * R2D;
+                llh[1] = llh[1] * R2D;
+
                 printw("\n Location: %10f, %10f, %4f - Time: \n", llh[0], llh[1], llh[2]);
-                printw("\n%15s  %4.1f s  \n%3s%6s%14s%17s%21s%18s%18s%18s%5s%8s\n", "Elapsed time", subGalTime(grx, g0), "CH", "PRN", "Azimuth", "Elevation", "Doppler [Hz]", "Code phase", "rx_time", "Pseudorange","Eph","Databit");//,"Y","M","D","HH","MM","SS");
+                printw("\n Elapsed time %4.1f s\n", subGalTime(grx, g0));
+                printw("\n%3s%6s%14s%17s%21s%18s%18s%18s%5s\n", "CH", "PRN", "Azimuth", "Elevation", "Doppler [Hz]", "Code phase", "rx_time", "Pseudorange", "Eph"); //,"Y","M","D","HH","MM","SS");
                 attroff(A_REVERSE);
                 for (i = 0; i < MAX_CHAN; i++)
                 {
                     if (chan[i].prn > 0 && use_cursors)
-                        printw("%3d%6d%14f%17f%21f%18f%18f%18f%5d%8d\n", i, chan[i].prn,  chan[i].azel[0] * R2D, chan[i].azel[1] * R2D, chan[i].f_carr, chan[i].code_phase_p, grx.sec, chan[i].rho0.range, current_eph[chan[i].prn - 1], chan[i].dataBit);//, t0.y, t0.m, t0.d, t0.hh, t0.mm, t0.sec);
+                        printw("%3d%6d%14f%17f%21f%18f%18f%18f%5d\n", i, chan[i].prn, chan[i].azel[0] * R2D, chan[i].azel[1] * R2D, chan[i].f_carr, chan[i].code_phase, grx.sec, chan[i].rho0.range, current_eph[chan[i].prn - 1]); //, t0.y, t0.m, t0.d, t0.hh, t0.mm, t0.sec);
                 }
                 refresh();
             }
         }
+        else
+            fprintf(stderr, "\rTime into run = %4.1f - %4.1ld", subGalTime(grx, g0), clock() - tstart);
 
         if (stop_signal_called_gal_task)
             break;
 
         fflush(stdout);
-
     }
 
     tend = clock();
     exit_flag = true;
     fprintf(stderr, "\nDone!\n");
+    endwin();
 
     // Free I/Q buffer
     free(iq_buff);
