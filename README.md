@@ -47,7 +47,7 @@ Options:
 Executing the following command will generate a Galileo signal file for the location 42,71,100 starting from 2022/02/20,08:00:01. The generated samples will be stored in **galileo.ishort** as interleaved shorts (I<sub>1</sub>Q<sub>1</sub>, I<sub>2</sub>Q<sub>2</sub>, ... , I<sub>n</sub>Q<sub>n</sub>) @ 2.6e6 samples/sec
 
 ```
-$ ./usrp_galileo -l 42,71,100 -t 2022/02/20,08:00:01 -n ../tv/20_FEB_2022_GST_08_00_01 -o galileo.ishort -U 1 -b 1;
+$ ./usrp_galileo -l 42,71,100 -t 2022/02/20,08:00:01 -n ../tv/20_FEB_2022_GST_08_00_01 -o /tmp/galileosim.bin -U 1 -b 1;
 ```
 This project is still in development. For now, scenario start time is limited to the following because of navigation message availability:
 
@@ -72,6 +72,8 @@ Please specify the correct start time with `-t` option and correct navigation me
 The generated E1B/C signal has been tested with GNSS-SDR and a battery of receivers from u-Blox and Septentrio. Here are some evaluation results.
 
 eval plots - [ to-do ]
+
+eval methodology - [add gnss-sdr instructions and USRP instructions]
 
 ## Future work
 
