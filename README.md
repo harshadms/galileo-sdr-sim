@@ -16,13 +16,24 @@ GALILEO-SDR-SIM generates Galileo baseband signal data streams, which can be con
 4. UHD (usrp api and dev library)
 5. Boost
 
+```
+sudo apt-get install -y libuhd-dev uhd-host gnss-sdr g++ libncurses-dev cmake pkg-config libboost-dev libglib2.0-dev build-essential
+```
+
+For offline evaluation, you will also need GNSS-SDR - found here -> https://gnss-sdr.org/
+
+GNSS-SDR installation with package manager on most Linux distros
+```
+sudo apt install gnss-sdr
+```
+For more installation options please check their website.
 ## Installation
 ```
-$ git clone https://github.com/harshadms/galileo-sdr-sim
-$ cd galileo-sdr-sim
-$ mkdir build && cd build
-$ cmake ../
-$ make
+git clone https://github.com/harshadms/galileo-sdr-sim
+cd galileo-sdr-sim
+mkdir build && cd build
+cmake ../
+make
 ```
 
 ## Execution
@@ -33,15 +44,16 @@ Usage: ./usrp_galileo [options]
 Options:
   -e <Ephemeris>   RINEX navigation file for Galileo ephemerides (required)
   -n <Navmsg Dir>  Dir containing navigation messages
-  -o <File sink>   File to store IQ samples (default: galileosim.ishort)
+  -o <File sink>   File to store IQ samples (default: ./galileosim.ishort)
   -u <user_motion> User motion file (dynamic mode)
   -l <location>    Lat,Lon,Hgt (static mode) e.g. 35.274,137.014,100
   -t <date,time>   Scenario start time YYYY/MM/DD,hh:mm:ss
   -T <date,time>   Overwrite TOC and TOE to scenario start time
   -d <duration>    Duration [sec] (default: 300)
   -a <rf_gain>     Absolute RF gain in [0 ... 60] (default: 30)
-  -U               Disable USRP (-U 1)
-  -b               Disable Bit stream (-b 1)
+  -U <use usrp>    Disable USRP (-U 1) (default: true)
+  -b <bitstream>   Disable Bit stream (-b 1) (default: true)
+  -v <verbose>     Enable verbose output (default: false)
 ```
 
 Executing the following command will generate a Galileo signal file for the location 42,71,100 starting from 2022/02/20,08:00:01. The generated samples will be stored in **galileo.ishort** as interleaved shorts (I<sub>1</sub>Q<sub>1</sub>, I<sub>2</sub>Q<sub>2</sub>, ... , I<sub>n</sub>Q<sub>n</sub>) @ 2.6e6 samples/sec
@@ -83,6 +95,7 @@ Here you will find all improvement plans and pending tasks. Please feel free to 
 - [ ] RINEX reader integration
 - [ ] Time & Frequency sync with GNSS-SDR monitor
 - [ ] Enable multi-SDR support (libhackrf, LimeSuite etc)
+- [ ] Fixed point arithmatic to avoid rounding errorss
 
 More ambitious plans:
 
