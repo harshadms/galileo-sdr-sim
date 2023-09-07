@@ -15,9 +15,11 @@ GALILEO-SDR-SIM generates Galileo baseband signal data streams, which can be con
 3. Curses
 4. UHD (usrp api and dev library)
 5. Boost
+6. pynput (optional, for real-time location update via keyboard)
 
 ```
 sudo apt-get install -y libuhd-dev uhd-host gnss-sdr g++ libncurses-dev cmake pkg-config libboost-dev libglib2.0-dev build-essential
+pip3 install pynput
 ```
 
 For offline evaluation, you will also need GNSS-SDR - found here -> https://gnss-sdr.org/
