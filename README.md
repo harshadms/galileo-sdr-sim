@@ -85,11 +85,9 @@ Please specify the correct start time with `-t` option and correct navigation me
 
 The generated E1B/C signal has been tested with GNSS-SDR and a battery of receivers from u-Blox and Septentrio. Here are some evaluation results.
 
-<object data="./pvt_and_tracking.pdf" type="application/pdf" width="700px" height="700px">
-    <embed src="./pvt_and_tracking.pdf">
-        <p>This browser does not support PDFs. Please download the PDF to view it: <a href="pvt_and_tracking.pdf">Download PDF</a>.</p>
-    </embed>
-</object>
+<img src="pvt_and_tracking.png"
+     alt="Markdown Monster icon"
+     style="float: left; margin-right: 10px;" />
 
 eval methodology - [add gnss-sdr instructions and USRP instructions]
 
