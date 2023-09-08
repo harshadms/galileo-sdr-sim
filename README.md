@@ -83,7 +83,7 @@ Please specify the correct start time with `-t` option and correct navigation me
 
 ## Evaluation
 
-The generated E1B/C signal has been tested with GNSS-SDR and a battery of receivers from u-Blox and Septentrio. Here are some evaluation results.
+The generated E1B/C signal has been tested with GNSS-SDR and a battery of receivers from u-Blox and Septentrio. For now it has only been tested on Ubuntu. Here are some evaluation results.
 
 eval plots - [ to-do ]
 
