@@ -1585,7 +1585,7 @@ void *galileo_task(void *arg)
 
     int result;
 
-    float gain[MAX_CHAN];
+    int gain[MAX_CHAN];
     double path_loss;
     double ant_gain;
     double ant_pat[37];
@@ -1997,15 +1997,14 @@ void *galileo_task(void *arg)
                 computeCodePhase(&chan[i], rho, dt, grx);
 
                 // Path loss
-                path_loss = 30200000.0 / rho.d;
+                path_loss = 20200000.0 / rho.d;
 
                 // Receiver antenna gain
-                ibs = (int)((90.0 - rho.azel[1] * R2D) /
-                            5.0); // covert elevation to boresight
+                ibs = (int)((90.0 - rho.azel[1] * R2D) / 5.0); // covert elevation to boresight
                 ant_gain = ant_pat[ibs];
 
                 // Signal gain
-                gain[i] = (path_loss * ant_gain); // scaled by 2^7
+                gain[i] = (int)(path_loss * ant_gain * 128.0); // scaled by 2^7
             }
         }
 
@@ -2046,8 +2045,8 @@ void *galileo_task(void *arg)
                     int databit = chan[i].page[chan[i].ibit] > 0 ? -1 : 1;
                     int secCode = GALILEO_E1_SECONDARY_CODE[chan[i].ibit % 25] > 0 ? -1 : 1;
 
-                    ip = (E1B_chip * databit - E1C_chip * secCode) * cosPh;
-                    qp = (E1B_chip * databit - E1C_chip * secCode) * sinPh;
+                    ip = (E1B_chip * databit - E1C_chip * secCode) * cosPh; // * gain[i];
+                    qp = (E1B_chip * databit - E1C_chip * secCode) * sinPh; // * gain[i];
 
                     // Accumulate for all visible satellites
                     i_acc += ip;
@@ -2062,8 +2061,8 @@ void *galileo_task(void *arg)
                 }
             }
             // Store I/Q samples into buffer
-            iq_buff[isamp * 2] = (short)i_acc * 10.4;
-            iq_buff[isamp * 2 + 1] = (short)q_acc * 10.25;
+            iq_buff[isamp * 2] = (short)i_acc;
+            iq_buff[isamp * 2 + 1] = (short)q_acc;
             // advance_fptr = true;
         }
 
