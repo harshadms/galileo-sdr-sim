@@ -106,5 +106,15 @@ More ambitious plans:
 - [ ] Integrate GPS L1 C/A
 
 #### Acknowledgements
-
 - <a href="https://github.com/osqzss/gps-sdr-sim">GPS-SDR-SIM</a> has been an inspiration to start this project
+
+To cite:
+```
+@inproceedings{sathaye2023galileo,
+  title={Galileo-SDR-SIM: An Open-Source Tool for Generating Galileo Satellite Signals},
+  author={Sathaye, Harshad and Motallebighomi, Maryam and Ranganathan, Aanjhan},
+  booktitle={Proceedings of the 36th International Technical Meeting of the Satellite Division of The Institute of Navigation (ION GNSS+ 2023)},
+  pages={3470--3480},
+  year={2023}
+}
+```
