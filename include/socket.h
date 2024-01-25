@@ -1,17 +1,4 @@
-#include <sys/types.h>
-#include <sys/socket.h>
-#include <stdio.h>
-#include <netinet/in.h>
-#include <arpa/inet.h>
-#include <unistd.h>
-#include <string.h>
-#include <stdlib.h>
-#include <fcntl.h>
-#include <sys/shm.h>
-#include <sys/time.h>
-#include <vector>
-#include <queue>
-#include <map>
+#include "../include/galileo-sdr.h"
 
 /*
 WARNING - HARDCODE CHANNEL TO PRN MAP FOR STREAM TX AS WELL AS STREAM RX - THERE IS NO CHANNEL TO PRN CHECK AS OF NOW
@@ -21,12 +8,6 @@ using namespace std;
 
 #define MAX_CHAN (16)
 #define INCOMING_SIZE 9 // Define here how many channels to receive from streamer (+1 for TOW)
-
-struct hash_queue
-{
-    vector<queue<int>> queue_bits;
-    map<int, int> chn_prn_map; // Maps satellites to channels, key is satellite, value is channel
-};
 
 int sockinit(short port)
 {
@@ -86,8 +67,8 @@ int udprecv(int s, void *data, int size)
 
 double raw_bits[INCOMING_SIZE];
 double llhr[3] = {42.34937020, -71.08817058, 100};
-double dynamic_dt = 0;
 
+double dynamic_dt = 0;
 double tow_correction;
 bool tow_rx;
 bool tow_fix = false;

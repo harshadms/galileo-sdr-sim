@@ -60,12 +60,23 @@ set(MATH_LIBRARIES ${MATH_LIBRARY} -lm)
 
 # need these include and link directories for the build
 include_directories(
-    ${UHD_INCLUDE_DIRS} ${CURSES_INCLUDE_DIRS} ${Boost_INCLUDE_DIR} ${ZeroMQ_LIBRARY} ${CMAKE_BINARY_DIR}/include
+    ${UHD_INCLUDE_DIRS} ${CURSES_INCLUDE_DIRS} ${Boost_INCLUDE_DIR} ${ZeroMQ_LIBRARY} ${CMAKE_BINARY_DIR}/include ${CMAKE_BINARY_DIR}/src ${CMAKE_BINARY_DIR}/debug_scripts
 )
 
 ### Make the executable #######################################################
+file(GLOB SRC
+     "src/*.cpp"
+)
+
+file(GLOB INC
+     "include/*.h"
+)
+
 #add_executable(galileo-sdr galileo-sdr.cpp include/galileo-sdr.h include/FileIO.cpp include/pch.cpp include/TimeUtils.cpp include/StringUtils.cpp include/Rinex3Nav.cpp)
-add_executable(usrp_galileo usrp_galileo.cpp include/galileo-sdr.cpp include/nav_msg_data.cpp include/usrp_galileo.h include/galileo-sdr.h)
+#add_executable(usrp_galileo usrp_galileo.cpp include/galileo-sdr.cpp include/nav_msg_data.cpp include/usrp_galileo.h include/galileo-sdr.h include/constants.h)
+#add_executable(generate_frame debug_scripts/generate_frame.cpp)
+#add_executable(rinex_reader debug_scripts/rinex_reader.cpp include/galileo-sdr.h)
+add_executable(usrp_galileo usrp_galileo.cpp  ${SRC} ${INC})
 
 set(LIBM_LIBRARIES)
 message(STATUS "******************************************************************************")

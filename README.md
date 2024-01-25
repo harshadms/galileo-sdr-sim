@@ -45,7 +45,6 @@ Usage, help and options
 Usage: ./usrp_galileo [options]
 Options:
   -e <Ephemeris>   RINEX navigation file for Galileo ephemerides (required)
-  -n <Navmsg Dir>  Dir containing navigation messages
   -o <File sink>   File to store IQ samples (default: ./galileosim.ishort)
   -u <user_motion> User motion file (dynamic mode)
   -l <location>    Lat,Lon,Hgt (static mode) e.g. 35.274,137.014,100
@@ -58,30 +57,17 @@ Options:
   -v <verbose>     Enable verbose output (default: false)
 ```
 
-Executing the following command will generate a Galileo signal file for the location 42,71,100 starting from 2022/02/20,08:00:01. The generated samples will be stored in **galileo.ishort** as interleaved shorts (I<sub>1</sub>Q<sub>1</sub>, I<sub>2</sub>Q<sub>2</sub>, ... , I<sub>n</sub>Q<sub>n</sub>) @ 2.6e6 samples/sec
+Executing the following command will generate a Galileo signal file for the location -6,51,100 starting from 2021/06/20,00:00:00. The generated samples will be stored in **/tmp/galileosim.bin** as interleaved shorts (I<sub>1</sub>Q<sub>1</sub>, I<sub>2</sub>Q<sub>2</sub>, ... , I<sub>n</sub>Q<sub>n</sub>) @ 2.6e6 samples/sec
 
 ```
-$ ./usrp_galileo -l 42,71,100 -t 2022/02/20,08:00:01 -n ../tv/20_FEB_2022_GST_08_00_01 -o /tmp/galileosim.bin -U 1 -b 1;
+$ ./usrp_galileo -l -6,51,100 -e ../rinex_files/week171.rnx -o /tmp/galileosim.bin -U 1 -b 1 -d 120;
 ```
-This project is still in development. For now, scenario start time is limited to the following because of navigation message availability:
-
-- 11_DEC_2020_GST_08_00_01
-- 12_DEC_2020_GST_08_00_01
-- 13_DEC_2020_GST_09_00_01
-- 15_DEC_2020_GST_08_00_01
-- 15_DEC_2020_GST_10_00_01
-- 16_DEC_2020_GST_08_00_01
-- 17_JAN_2021_GST_08_00_01
-- 12_JAN_2021_GST_10_00_01
-- 13_JAN_2021_GST_10_00_01
-- 25_JAN_2021_GST_08_00_01
-- 23_FEB_2021_GST_09_00_31
-- 28_FEB_2021_GST_08_00_01
-- 20_FEB_2022_GST_08_00_01
-
-Please specify the correct start time with `-t` option and correct navigation message files by specifying `-n`. All navigation messages are stored in `./tv/<date_time>`
-
+I/NAV message generation is still under testing. If you want to use pre-computed messages, please use v1.0.0.
 ## Evaluation
+
+```
+* This is old evaluation. Please wait for new evaluations.
+```
 
 The generated E1B/C signal has been tested with GNSS-SDR and a battery of receivers from u-Blox and Septentrio. Here are some evaluation results.
 
@@ -95,8 +81,9 @@ eval methodology - [add gnss-sdr instructions and USRP instructions]
 
 Here you will find all improvement plans and pending tasks. Please feel free to add suggestions and contribute :)
 
-- [ ] I/NAV message generation (generate_frame.cpp has some PoC)
-- [ ] RINEX reader integration
+- [x] I/NAV message generation (generate_frame.cpp has some PoC)
+- [x] RINEX reader integration
+- [ ] Test I/NAV message generation with different rinex files with varring PVT
 - [ ] Time & Frequency sync with GNSS-SDR monitor
 - [ ] Enable multi-SDR support (libhackrf, LimeSuite etc)
 - [ ] Fixed point arithmatic to avoid rounding errorss
