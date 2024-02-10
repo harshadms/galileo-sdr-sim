@@ -76,7 +76,7 @@ file(GLOB INC
 #add_executable(usrp_galileo usrp_galileo.cpp include/galileo-sdr.cpp include/nav_msg_data.cpp include/usrp_galileo.h include/galileo-sdr.h include/constants.h)
 #add_executable(generate_frame debug_scripts/generate_frame.cpp)
 #add_executable(rinex_reader debug_scripts/rinex_reader.cpp include/galileo-sdr.h)
-add_executable(usrp_galileo usrp_galileo.cpp  ${SRC} ${INC})
+add_executable(usrp_galileo src/main.cpp  ${SRC} ${INC})
 
 set(LIBM_LIBRARIES)
 message(STATUS "******************************************************************************")
