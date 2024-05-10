@@ -24,7 +24,7 @@ int epoch_matcher(galtime_t obsTime, vector<ephem_t> eph, int ind2ex)
 	// 		index = i; // save index
 	// 	}
 	// }
-    int index;
+    int index = -1;
     double dt;
     for (unsigned i = 0; i < eph.size(); i++) {
         if (eph.at(i).vflg == 1)
@@ -100,6 +100,7 @@ int readContentsData(char *str, double *data, datetime_t *time, bool read_time)
 // https://server.gage.upc.edu/gLAB/HTML/GALILEO_Navigation_Rinex_v3.04.html
 int readRinexV3(vector<ephem_t> eph_vector[MAX_SAT], ionoutc_t *ionoutc, char *fname)
 {    
+	int eph_count = 0;
     FILE *fp;
 
     fp = fopen(fname, "r");
@@ -233,6 +234,7 @@ int readRinexV3(vector<ephem_t> eph_vector[MAX_SAT], ionoutc_t *ionoutc, char *f
             eph.gps_time = data[27]; gps_time(&utctime);
 
             eph_vector[svid-1].push_back(eph);
+            eph_count++;
         }
     }
 	// exit(1);
@@ -243,4 +245,6 @@ int readRinexV3(vector<ephem_t> eph_vector[MAX_SAT], ionoutc_t *ionoutc, char *f
             continue;
         cout << "Loaded " << eph_vector[i].size() << " records for " << i+1 << endl;
     }
+
+    return eph_count;
 }
