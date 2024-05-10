@@ -36,7 +36,7 @@ int generateINavMsg(galtime_t g, channel_t *chan, ephem_t *eph, ionoutc_t *ionou
 		{odd_page[i] = 0;
 		even_page[i] = 0;}
 
-    int word_type_index = ((int)g.sec % 30)/2;
+    int word_type_index = ((int)g.sec % 60)/2;
     int word_type = WordAllocationE1[word_type_index];
 
     generate_page(g, eph, ionoutc, even_page, odd_page, word_type);
@@ -309,7 +309,7 @@ void generate_page(galtime_t g, ephem_t *eph, ionoutc_t *ionoutc, int *even_page
 	
 	case 5:
 		// Word type - Even page
-		encode_int_to_bits(page, &offset, 5, 8); // Word type 4
+		encode_int_to_bits(page, &offset, 5, 8); // Word type 5
 		// iono ai0
 		UintValue = UnscaleUint(ionoutc->ai0, -2);
 		encode_double_to_bits(page, &offset, UintValue, 11);
@@ -337,7 +337,7 @@ void generate_page(galtime_t g, ephem_t *eph, ionoutc_t *ionoutc, int *even_page
 		// TOW
 		encode_int_to_bits(page, &offset, TOW, 20);
 		// Spare
-		encode_int_to_bits(page, &offset, 0, 3);
+		encode_int_to_bits(page, &offset, 0, 23);
 		break;
 	
 	case 6:
@@ -383,6 +383,7 @@ void generate_page(galtime_t g, ephem_t *eph, ionoutc_t *ionoutc, int *even_page
 
 	// Add Odd page indicator at the 114th bit
 	shift_and_insert(page, 114, 1, 0, 240);
+	offset += 2;
 
 	// CRC
 	unsigned int crcq = Crc24qEncode(page, 196);
