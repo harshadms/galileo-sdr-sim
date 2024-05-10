@@ -140,21 +140,30 @@ void shift_and_insert(int *arr, int index, uint32_t newElement1, uint32_t newEle
 
 unsigned int Crc24qEncode(int *BitStream, int Length)
 {
-    int i, BitNum;
-    unsigned int Data = 0, crc_result = 0;
+    unsigned int crc_result = 0;
+    unsigned char dataByte = 0;
 
-    // Calculate the number of bits needed to store the CRC result
-    BitNum = 24;
-	int j;
+    int j;
+    for (j = 0; j < Length; j++)
+    {
+        if (j > 0 && j % 8 == 0)
+        {
+            crc_result = ((crc_result | dataByte) << 8) ^ Crc24q[(crc_result >> 24) & 0xFF];
+            dataByte = 0;
+        }
 
-	for (j = 0; j < Length; j++) {
-		unsigned char dataByte = (char)BitStream[j];
-		for (i = 0; i < 8; i++) {
-			crc_result = (crc_result << 8) ^ Crc24q[(dataByte >> (7 - i)) ^ (unsigned char)(crc_result >> 16)];
+        dataByte = (dataByte << 1) | (char)BitStream[j];
+    }
 
-		}
-	}
-	return (crc_result & 0xffffff);
+    unsigned char trail_bits_count = j % 8;
+    dataByte <<= (8U - trail_bits_count);
+    crc_result = ((crc_result | dataByte) << trail_bits_count) ^ Crc24q[(crc_result >> (32 - trail_bits_count)) & 0xFF];
+
+    for (int i = 0; i < 3; i++)
+    {
+        crc_result = (crc_result << 8) ^ Crc24q[(crc_result >> 24) & 0xFF];
+    }
+    return (crc_result >> 8);
 }
 
 // Generate page from eph - 4.3.5. I/NAV Word Types
