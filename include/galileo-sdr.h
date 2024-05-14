@@ -29,8 +29,9 @@
 
 using namespace std;
 
-const int WordAllocationE1[15] = {
+const int WordAllocationE1[30] = {
 	2, 4, 6, 7, 8, 17, 19, 16, 0, 0, 1, 3, 5, 0, 16,
+	2, 4, 6, 9, 10,17, 19, 16, 0, 0, 1, 3, 5, 0, 16
 };
 
 void sigint_handler(int code);
