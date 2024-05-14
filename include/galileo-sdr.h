@@ -125,7 +125,7 @@ unsigned char getGalileoUra(double data);
 void convertD2E(char *str);
 
 /*! \brief USRP functions */
-int init_usrp(usrp_conf_t usrpconf, sim_t *s);
+void init_usrp(usrp_conf_t usrpconf, sim_t *s);
 
 /*! \brief FIFO functions */
 int is_fifo_write_ready(sim_t *s);

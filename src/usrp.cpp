@@ -1,6 +1,6 @@
 #include "../include/galileo-sdr.h"
 
-int init_usrp(usrp_conf_t usrpconf, sim_t *s)
+void init_usrp(usrp_conf_t usrpconf, sim_t *s)
 {
     // Create USRP
     size_t samps_per_buff = SAMPLES_PER_BUFFER;

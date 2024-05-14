@@ -229,6 +229,11 @@ void *galileo_task(void *arg)
     /* sv = PRN-1 */
     for (sv = 0; sv < MAX_SAT; sv++)
     {
+        if (eph_vector[sv].size() == 0)
+        {
+            continue;
+        }
+
         eph = eph_vector[sv][0];
 
         if (eph.vflg == 1)
@@ -299,13 +304,16 @@ void *galileo_task(void *arg)
     for (sv = 0; sv < MAX_SAT; sv++)
     {
         current_eph[sv] = epoch_matcher(grx, eph_vector[sv], current_eph[sv]);
-        if (current_eph[sv] == -1)
-        {
-            fprintf(stderr, "ERROR: No current set of ephemerides has been found.\n");
-            exit(1);
-        }
-        //print_eph2(&eph_vector[sv][current_eph[sv]], 1);
-        //continue;
+//        if (current_eph[sv] == -1)
+//        {
+//            fprintf(stderr, "ERROR: No current set of ephemerides has been found for SVID %d grx %d-%f.\n", sv + 1, grx.week, grx.sec);
+//            continue;
+//        }
+
+//        if (current_eph[sv] != -1)
+//        {
+//        	print_eph2(&eph_vector[sv][current_eph[sv]], sv+1);
+//        }
     }
 
 
