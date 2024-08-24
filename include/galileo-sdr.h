@@ -68,8 +68,11 @@ void satpos(ephem_t eph, galtime_t g, double *pos, double *vel, double *clk);
 double dotProd(const double *x1, const double *x2);
 double normVect(const double *x);
 void subVect(double *y, const double *x1, const double *x2);
-double ionosphericDelay(const ionoutc_t *ionoutc, galtime_t g, double *llh, double *azel);
 int checkSatVisibility(ephem_t eph, galtime_t g, double *xyz, double elvMask, double *azel, int prn);
+
+/*! \brief ionospheric delay functions - iono.cpp */
+double ionosphericDelay(const ionoutc_t *ionoutc, galtime_t g, double *user_llh, double *sat_llh, double *azel, double freq);
+double ionosphericDelay(double *user_llh, double *azel);
 
 /*! \brief Galileo Signal functions - gal-sig.cpp */
 void hex_to_binary_converter(short *dest, bool c1, int prn);
