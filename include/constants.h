@@ -191,6 +191,20 @@ constexpr double AS2R = D2R / 3600.0;   //!< arc sec to radian
 
 constexpr double AU = 149597870691.0; //!< 1 Astronomical Unit AU (m) distance from Earth to the Sun.
 
+// Constants related to the calculation of NequickG ionospheric algorithm
+constexpr double NEQUICK_G_ZENITH0 = 86.23292796211615;
+constexpr double NEQUICK_G_RE_KM = 6371.2;
+constexpr int NEQUICK_G_F2_MAX_INDEX_J = 76;
+constexpr int NEQUICK_G_F2_MAX_INDEX_K = 13;
+constexpr int NEQUICK_G_FM3_MAX_INDEX_J = 49;
+constexpr int NEQUICK_G_FM3_MAX_INDEX_K = 9;
+constexpr int NEQUICK_G_MODIP_MAX_INDEX = 39;
+constexpr int NEQUICK_G_KRONROD_MAX_RECURSION_LEVEL = 50;
+/** Num of K15 pts for Kronrod integration */
+constexpr int NEQUICK_G_KRONROD_K15_POINT_COUNT = (15);
+/** Num of G7 pts for Kronrod integration */
+constexpr int NEQUICK_G_KRONROD_G7_POINT_COUNT = (7);
+
 // optimum parameters
 constexpr uint32_t GALILEO_E1_OPT_ACQ_FS_SPS = 2000000; //!< Sampling frequency that maximizes the acquisition SNR while using a non-multiple of chip rate
 

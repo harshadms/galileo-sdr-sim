@@ -283,13 +283,16 @@ void computeRange(range_t *rho, ephem_t eph, ionoutc_t *ionoutc, galtime_t g, do
     double r[3] = {range, range - SPEED_OF_LIGHT * clk[0], 0};
 
     // Azimuth and elevation angles.
-    xyz2llh(xyz, llh);
+    double satLLH[3];
+    xyz2llh(xyz, llh);     //convert userXYZ to llh
+    xyz2llh(pos, satLLH);  //convert satXYZ to llh
     ltcmat(llh, tmat);
     ecef2neu(los, tmat, neu);
     neu2azel(rho->azel, neu);
 
     // Add ionospheric delay
-	rho->iono_delay = ionosphericDelay(ionoutc, g, llh, rho->azel);
+    double frequency = CARR_FREQ;
+	rho->iono_delay = ionosphericDelay(ionoutc, g, llh, satLLH, rho->azel, frequency);
 
 	rho->range += rho->iono_delay;
     rho->g = g;
