@@ -217,17 +217,10 @@ const int sync_pattern[10] = {0, 1, 0, 1, 1, 0, 0, 0, 0, 0};
 #define COS_TAB_LENGTH 2048
 #define COS_TAB_MASK (COS_TAB_LENGTH - 1)
 
-static int cosTable[COS_TAB_LENGTH];
-static int sinTable[COS_TAB_LENGTH];
+extern int cosTable[COS_TAB_LENGTH];
+extern int sinTable[COS_TAB_LENGTH];
 
-void init_tables()
-{
-    for (int i = 0; i < COS_TAB_LENGTH; i++)
-    {
-        cosTable[i] = (int)(250.0 * cos(2.0 * PI * i / COS_TAB_LENGTH));
-        sinTable[i] = (int)(250.0 * sin(2.0 * PI * i / COS_TAB_LENGTH));
-    }
-}
+void init_tables();
 
 
 // Galileo E1 primary codes

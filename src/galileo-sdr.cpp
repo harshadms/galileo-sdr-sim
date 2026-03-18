@@ -27,15 +27,8 @@
 #include <signal.h>
 #include "../include/socket.h"
 
-// The following defines and declarations are assumed to be moved to constants.h
-// #define COS_TAB_LENGTH 2048
-// #define COS_TAB_MASK (COS_TAB_LENGTH - 1)
-// extern int cosTable[COS_TAB_LENGTH];
-// extern int sinTable[COS_TAB_LENGTH];
-// void init_tables();
-
 // The implementation of init_tables() and the definition of cosTable/sinTable
-// are kept in this .cpp file as per the instruction "Move lookup table implementation to galileo-sdr.cpp"
+// are kept in this .cpp file. Declarations are in constants.h.
 int cosTable[COS_TAB_LENGTH];
 int sinTable[COS_TAB_LENGTH];
 
