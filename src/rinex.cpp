@@ -99,143 +99,135 @@ int readContentsData(char *str, double *data, datetime_t *time, bool read_time)
 
 // https://server.gage.upc.edu/gLAB/HTML/GALILEO_Navigation_Rinex_v3.04.html
 int readRinexV3(vector<ephem_t> eph_vector[MAX_SAT], ionoutc_t *ionoutc, char *fname)
-{    
-	int eph_count = 0;
-    FILE *fp;
-
-    fp = fopen(fname, "r");
-    if(fp == NULL) {
+{
+    int eph_count = 0;
+    FILE *fp = fopen(fname, "r");
+    if (fp == NULL)
+    {
         perror("Error opening file");
-        return(-1);
+        return (-1);
     }
 
-    // Parse header
-    // Ionospheric correction
-    // UTC
+    // Default leap seconds (GST-UTC) if not in header
+    ionoutc->dtls = 18;
 
     char str[MAX_CHAR];
-
-    while (1)
+    // Parse header
+    while (fgets(str, MAX_CHAR, fp) != NULL)
     {
-        // getline(myfile, line);
-        if( fgets (str, MAX_CHAR, fp)==NULL ) 
+        if (strncmp(str + 60, "END OF HEADER", 13) == 0)
             break;
 
-        if(strncmp(str + 60, "END OF HEADER", 13) == 0)
-            break;
-
-        // Ionospheric corrections ai0, ai1, ai2
-        if(strncmp(str + 60, "IONOSPHERIC CORR", 16) == 0)
+        // Ionospheric corrections
+        if (strncmp(str + 60, "IONOSPHERIC CORR", 16) == 0 && strncmp(str, "GAL", 3) == 0)
         {
             convertD2E(str);
-            sscanf(str + 4, "%lf %lf %lf %lf", &(ionoutc->ai0), &(ionoutc->ai1), &(ionoutc->ai2), &(ionoutc->ai3));
+            sscanf(str + 4, "%lf %lf %lf", &(ionoutc->ai0), &(ionoutc->ai1), &(ionoutc->ai2));
         }
 
         // Time corrections GAUT - GAL to UTC
-        if(strncmp(str + 60, "TIME SYSTEM CORR", 16) == 0 && strncmp(str, "GAUT", 4) == 0)
+        if (strncmp(str + 60, "TIME SYSTEM CORR", 16) == 0 && strncmp(str, "GAUT", 4) == 0)
         {
-            char ch;
-	        int data1, data2;
-
             convertD2E(str);
-            ch = str[22]; str[22] = 0; // put string terminator on first data
+            char ch = str[22];
+            str[22] = 0;
             sscanf(str + 4, "%lf", &(ionoutc->A0));
-
-            str[22] = ch;	// restore char after first data
+            str[22] = ch;
+            int data1, data2;
             sscanf(str + 22, "%lf %d %d", &(ionoutc->A1), &data1, &data2);
             ionoutc->A2 = 0.0;
             ionoutc->tot = (unsigned char)(data1 >> 12);
             ionoutc->wnt = (short)data2 >> 4;
             ionoutc->wnlsf = (short)data2;
-            ionoutc->dtls = 18;
-            ionoutc->dtlsf = 18;
-            ionoutc->dn = 7;
-
-            // cout << "A0 " << ionoutc->wnt << endl;
-            // cout << "A1 " << ionoutc->wnlsf << endl;
-            // exit(1);
         }
 
         // Leap seconds
+        if (strncmp(str + 60, "LEAP SECONDS", 12) == 0)
+        {
+            int leap;
+            if (sscanf(str, "%d", &leap) == 1)
+                ionoutc->dtls = leap;
+        }
     }
 
     // Parse ephemeris data
-    while (1)
+    while (fgets(str, MAX_CHAR, fp) != NULL)
     {
-        if( fgets (str, MAX_CHAR, fp)==NULL ) 
+        if (str[0] != 'E')
+            continue; // Only Galileo for now
+
+        double data[39];
+        datetime_t utctime;
+        galtime_t galtime;
+
+        int svid = readContentsData(str, &data[0], &utctime, true);
+        if (svid <= 0 || svid > MAX_SAT)
+            continue;
+
+        ephem_t eph;
+        bool truncated = false;
+        for (int i = 0; i < 7; i++)
+        {
+            if (fgets(str, MAX_CHAR, fp) == NULL)
+            {
+                truncated = true;
+                break;
+            }
+            readContentsData(str, &data[i * 4 + 3], &utctime, false);
+        }
+
+        if (truncated)
             break;
 
-        // EPH for new satellite - process 8 lines
-        if( str[0] == 'E' )
-        {
-            double data[39];
-            datetime_t utctime;
-            galtime_t galtime;
+        date2gal(&utctime, &galtime);
 
-            // Extract epoch and SVID
-            int svid = readContentsData(str, &data[0], &utctime, true);
+        eph.svid = svid;
+        eph.toc = galtime;
+        eph.af0 = data[0];
+        eph.af1 = data[1];
+        eph.af2 = data[2];
+        eph.sqrta = data[10];
+        eph.ecc = data[8];
+        eph.inc0 = data[15];
+        eph.omg0 = data[13];
+        eph.aop = data[17];
+        eph.m0 = data[6];
+        eph.deltan = data[5];
+        eph.omgdot = data[18];
+        eph.idot = data[19];
+        eph.crc = data[16];
+        eph.crs = data[4];
+        eph.cuc = data[7];
+        eph.cus = data[9];
+        eph.cic = data[12];
+        eph.cis = data[14];
+        eph.toe.sec = (int)(data[11] + 0.5);
+        eph.toe.week = (int)data[21];
+        eph.iode = (unsigned char)data[3];
+        eph.svhlth = (unsigned short)data[24];
+        eph.ura = getGalileoUra(data[23]);
+        eph.flag = (unsigned short)data[20];
 
-            // Push back a blank eph
-            ephem_t eph;
+        // Basic filtering for E1B-I/NAV which is what we simulate
+        if (eph.flag != 517 && eph.flag != 257) // 517 = E1B/E5b, 257 = E1B
+            continue;
 
-            // Parse through remaining data lines
-            for (int i=0; i < 7; i++)
-            {
-                fgets(str, MAX_CHAR, fp);
-                readContentsData(str, &data[i*4+3], &utctime, false);
-            }
+        eph.bgde5a = data[25];
+        eph.bgde5b = (eph.flag & 0x2) ? data[25] : data[26];
+        eph.tgd_ext[2] = eph.bgde5a * TGD_GAMME_L5;
+        eph.tgd_ext[4] = eph.bgde5a * TGD_GAMMA_E5b;
 
-            date2gal(&utctime, &galtime);
+        eph.A = eph.sqrta * eph.sqrta;
+        eph.n = WGS_SQRT_GM / (eph.sqrta * eph.A) + eph.deltan;
+        eph.sq1e2 = sqrt(1.0 - eph.ecc * eph.ecc);
+        eph.omg_t = eph.omg0 - OMEGA_EARTH * eph.toe.sec;
+        eph.omgkdot = eph.omgdot - OMEGA_EARTH;
+        eph.vflg = 1;
+        eph.PRN = svid;
+        eph.gps_time = data[27];
 
-            eph.svid = svid;
-            eph.toc = galtime;
-            eph.af0 = data[0];
-            eph.af1 = data[1];
-            eph.af2 = data[2];
-            eph.sqrta = data[10];
-            eph.ecc = data[8];
-            eph.inc0 = data[15];
-            eph.omg0 = data[13];
-            eph.aop = data[17];
-            eph.m0 = data[6];
-            eph.deltan = data[5];
-            eph.omgdot = data[18];
-            eph.idot = data[19];
-            eph.crc = data[16];
-            eph.crs = data[4];
-            eph.cuc = data[7];
-            eph.cus = data[9];
-            eph.cic = data[12];
-            eph.cis = data[14];
-            eph.toe.sec = (int)(data[11] + 0.5); 
-            eph.toe.week = (int)data[21];      /* week number */
-            eph.iode = (unsigned char)data[3];      /* IODE/AODE */
-
-            eph.svhlth = (unsigned short)data[24];      /* sv health */
-
-			eph.ura = getGalileoUra(data[23]);
-			eph.flag = (unsigned short)data[20];
-            if (eph.flag != 517)
-                continue;
-
-			eph.bgde5a = data[25];      /* TGD */
-			eph.bgde5b = (eph.flag & 0x2) ? data[25] : data[26];      /* TGD for E1/E5b */
-			eph.tgd_ext[2] = eph.bgde5a * TGD_GAMME_L5;	/* TGD for E5a */
-			eph.tgd_ext[4] = eph.bgde5a * TGD_GAMMA_E5b;	/* TGD for E5b */
-
-            eph.A = eph.sqrta * eph.sqrta;
-            eph.n = WGS_SQRT_GM / (eph.sqrta * eph.A) + eph.deltan;
-            eph.sq1e2 = sqrt(1.0 - eph.ecc * eph.ecc);
-            eph.omg_t = eph.omg0 - OMEGA_EARTH * eph.toe.sec;
-            eph.omgkdot = eph.omgdot - OMEGA_EARTH;
-            eph.vflg = 1;
-            eph.PRN = svid;
-
-            eph.gps_time = data[27]; gps_time(&utctime);
-
-            eph_vector[svid-1].push_back(eph);
-            eph_count++;
-        }
+        eph_vector[svid - 1].push_back(eph);
+        eph_count++;
     }
 	// exit(1);
 
