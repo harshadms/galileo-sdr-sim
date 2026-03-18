@@ -14,10 +14,12 @@ if(NOT CMAKE_BUILD_TYPE)
   set(CMAKE_BUILD_TYPE Release)
 endif()
 
-
 set(CMAKE_CXX_STANDARD 11)
 set(THREADS_PREFER_PTHREAD_FLAG ON)
-set(CMAKE_BUILD_TYPE Debug)
+
+set(CMAKE_C_FLAGS_RELEASE "-O3 -march=native -ffast-math")
+set(CMAKE_CXX_FLAGS_RELEASE "-O3 -march=native -ffast-math")
+
 set(CMAKE_C_FLAGS_DEBUG "-g -DDEBUG")
 set(CMAKE_CXX_FLAGS_DEBUG "-g -DDEBUG")
 set(CURSES_NEED_NCURSES TRUE)
