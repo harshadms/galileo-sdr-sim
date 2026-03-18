@@ -75,13 +75,13 @@
 #define TX_SAMPLERATE SAMP_RATE
 #define TX_BANDWIDTH SAMP_RATE*2
 
-#define NUM_BUFFERS 32
-#define SAMPLES_PER_BUFFER (32 * 1024)
-#define NUM_TRANSFERS 16
+#define NUM_BUFFERS 64
+#define SAMPLES_PER_BUFFER (64 * 1024)
+#define NUM_TRANSFERS 32
 #define TIMEOUT_MS 1000
 
 #define NUM_IQ_SAMPLES (TX_SAMPLERATE / 10)
-#define FIFO_LENGTH (NUM_IQ_SAMPLES * 2)
+#define FIFO_LENGTH (NUM_IQ_SAMPLES * 4)
 
 static const int ccGenMatrix[2][7] = {
     {1, 1, 1, 1, 0, 0, 1},
