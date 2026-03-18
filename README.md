@@ -83,7 +83,7 @@ Here you will find all improvement plans and pending tasks. Please feel free to 
 
 - [x] I/NAV message generation (generate_frame.cpp has some PoC)
 - [x] RINEX reader integration
-- [ ] Test I/NAV message generation with different rinex files with varring PVT
+- [x] Test I/NAV message generation with different rinex files with varring PVT
 - [ ] Time & Frequency sync with GNSS-SDR monitor
 - [ ] Enable multi-SDR support (libhackrf, LimeSuite etc)
 - [ ] Fixed point arithmatic to avoid rounding errorss
