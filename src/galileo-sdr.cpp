@@ -478,58 +478,65 @@ void *galileo_task(void *arg)
             }
         }
 
+        // Current navigation bits and secondary codes for all channels
+        int ch_databit[MAX_CHAN];
+        int ch_secCode[MAX_CHAN];
+        for (i = 0; i < MAX_CHAN; i++)
+        {
+            if (chan[i].prn > 0)
+            {
+                ch_databit[i] = chan[i].page[chan[i].ibit] > 0 ? -1 : 1;
+                ch_secCode[i] = GALILEO_E1_SECONDARY_CODE[chan[i].ibit % 25] > 0 ? -1 : 1;
+            }
+        }
+
         for (isamp = 0; isamp < iq_buff_size; isamp++)
         {
             int i_acc = 0;
             int q_acc = 0;
-            double a = get_nanos();
-            // fprintf(stderr, "\n");
+            
             for (i = 0; i < MAX_CHAN; i++)
             {
                 if (chan[i].prn > 0)
                 {
+                    // Check for code boundary
                     if (chan[i].code_phase >= CA_SEQ_LEN_E1)
                     {
                         chan[i].code_phase -= CA_SEQ_LEN_E1;
                         chan[i].ibit++;
 
-                        // 500 bits = 1 page
                         if (chan[i].ibit >= N_SYM_PAGE)
                         {   
                             chan[i].ibit = 0;
                             chan[i].ipage++;
-
-                            // Generate new page
                             sv = chan[i].prn - 1;
                             eph = eph_vector[sv][current_eph[sv]];
                             generateINavMsg(grx, &chan[i], &eph, &iono);
                         }
+                        
+                        // Update bits for this channel since ibit changed
+                        ch_databit[i] = chan[i].page[chan[i].ibit] > 0 ? -1 : 1;
+                        ch_secCode[i] = GALILEO_E1_SECONDARY_CODE[chan[i].ibit % 25] > 0 ? -1 : 1;
                     }
 
-                    int cosPh = cosTable512[((int)(511 * chan[i].carr_phase)) & 511];
-                    int sinPh = sinTable512[((int)(511 * chan[i].carr_phase)) & 511];
+                    int carr_idx = ((int)(511 * chan[i].carr_phase)) & 511;
+                    int cosPh = cosTable512[carr_idx];
+                    int sinPh = sinTable512[carr_idx];
 
                     int icode = (int)(chan[i].code_phase * 2);
 
                     int E1B_chip = chan[i].ca_E1B[icode];
                     int E1C_chip = chan[i].ca_E1C[icode];
 
-                    int databit = chan[i].page[chan[i].ibit] > 0 ? -1 : 1;
-                    int secCode = GALILEO_E1_SECONDARY_CODE[chan[i].ibit % 25] > 0 ? -1 : 1;
+                    int common_mult = (E1B_chip * ch_databit[i] - E1C_chip * ch_secCode[i]);
 
-                    ip = (E1B_chip * databit - E1C_chip * secCode) * cosPh; // * gain[i];
-                    qp = (E1B_chip * databit - E1C_chip * secCode) * sinPh; // * gain[i];
+                    i_acc += common_mult * cosPh;
+                    q_acc += common_mult * sinPh;
 
-                    // Accumulate for all visible satellites
-                    i_acc += ip;
-                    q_acc += qp;
-
-                    // Update code phase
+                    // Update phases
                     chan[i].code_phase += chan[i].f_code * delt;
-
-                    // Update carrier phase
-                    chan[i].carr_phase += (chan[i].f_carr) * delt;
-                    chan[i].carr_phase -= (long)chan[i].carr_phase; // (carr_phase %1)
+                    chan[i].carr_phase += chan[i].f_carr * delt;
+                    chan[i].carr_phase -= (int)chan[i].carr_phase; 
                 }
             }
             // Store I/Q samples into buffer
