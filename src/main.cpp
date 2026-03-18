@@ -68,29 +68,24 @@ void *tx_task(void *arg)
         if (stop_signal_called)
             goto out;
 
-        short *tx_buffer_current = s->tx.buffer;
-        int buffer_samples_remaining = SAMPLES_PER_BUFFER;
-        const void **buffs_ptr = NULL;
-
-        while (buffer_samples_remaining > 0)
+        pthread_mutex_lock(&(s->galileo_sim.lock));
+        while (get_sample_length(s) < SAMPLES_PER_BUFFER)
         {
-            pthread_mutex_lock(&(s->galileo_sim.lock));
-
-            while (get_sample_length(s) == 0)
-            {
-                pthread_cond_wait(&(s->fifo_read_ready), &(s->galileo_sim.lock));
-            }
-
-            samples_populated = fifo_read(tx_buffer_current, buffer_samples_remaining, s);
-            pthread_mutex_unlock(&(s->galileo_sim.lock));
-
-            pthread_cond_signal(&(s->fifo_write_ready));
-
-            // Advance the buffer pointer.
-            buffer_samples_remaining -= (unsigned int)samples_populated;
-
-            tx_buffer_current += (2 * samples_populated);
+            if (stop_signal_called || is_finished_generation(s))
+                break;
+            pthread_cond_wait(&(s->fifo_read_ready), &(s->galileo_sim.lock));
         }
+
+        if (stop_signal_called)
+        {
+            pthread_mutex_unlock(&(s->galileo_sim.lock));
+            goto out;
+        }
+
+        samples_populated = fifo_read(s->tx.buffer, SAMPLES_PER_BUFFER, s);
+        pthread_mutex_unlock(&(s->galileo_sim.lock));
+
+        pthread_cond_signal(&(s->fifo_write_ready));
 
         k++;
 
