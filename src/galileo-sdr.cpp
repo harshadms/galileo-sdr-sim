@@ -344,7 +344,7 @@ void *galileo_task(void *arg)
     // Initialize channels
     ////////////////////////////////////////////////////////////
 
-    dt = 0.10000002314200000;
+    dt = 0.1;
     grx = incGalTime(grx, dt);
 
     init_channel(chan, allocatedSat);
