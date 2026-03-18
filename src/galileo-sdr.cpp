@@ -27,6 +27,27 @@
 #include <signal.h>
 #include "../include/socket.h"
 
+// The following defines and declarations are assumed to be moved to constants.h
+// #define COS_TAB_LENGTH 2048
+// #define COS_TAB_MASK (COS_TAB_LENGTH - 1)
+// extern int cosTable[COS_TAB_LENGTH];
+// extern int sinTable[COS_TAB_LENGTH];
+// void init_tables();
+
+// The implementation of init_tables() and the definition of cosTable/sinTable
+// are kept in this .cpp file as per the instruction "Move lookup table implementation to galileo-sdr.cpp"
+int cosTable[COS_TAB_LENGTH];
+int sinTable[COS_TAB_LENGTH];
+
+void init_tables()
+{
+    for (int i = 0; i < COS_TAB_LENGTH; i++)
+    {
+        cosTable[i] = (int)(250.0 * cos(2.0 * PI * i / COS_TAB_LENGTH));
+        sinTable[i] = (int)(250.0 * sin(2.0 * PI * i / COS_TAB_LENGTH));
+    }
+}
+
 
 int samples_per_code;
 std::vector<int> current_eph;
