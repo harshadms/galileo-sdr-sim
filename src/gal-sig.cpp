@@ -308,7 +308,7 @@ void computeRange(range_t *rho, ephem_t eph, ionoutc_t *ionoutc, galtime_t g, do
 void computeCodePhase(channel_t *chan, range_t rho1, double dt, galtime_t grx) // checked
 {
     double ms;
-    int ims;
+    int ims = (unsigned int)ms / 4;
     double rhorate;
 
     // Pseudorange rate.
