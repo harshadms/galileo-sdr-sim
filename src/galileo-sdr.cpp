@@ -519,9 +519,9 @@ void *galileo_task(void *arg)
                         ch_secCode[i] = GALILEO_E1_SECONDARY_CODE[chan[i].ibit % 25] > 0 ? -1 : 1;
                     }
 
-                    int carr_idx = ((int)(511 * chan[i].carr_phase)) & 511;
-                    int cosPh = cosTable512[carr_idx];
-                    int sinPh = sinTable512[carr_idx];
+                    int carr_idx = ((int)(COS_TAB_LENGTH * chan[i].carr_phase)) & COS_TAB_MASK;
+                    int cosPh = cosTable[carr_idx];
+                    int sinPh = sinTable[carr_idx];
 
                     int icode = (int)(chan[i].code_phase * 2);
 

@@ -55,6 +55,7 @@ void init_sim(sim_t *s)
 void *tx_task(void *arg)
 {
     sim_t *s = (sim_t *)arg;
+    init_tables();
     size_t samples_populated;
     size_t num_samps_sent = 0;
     size_t samples_per_buffer = SAMPLES_PER_BUFFER;
