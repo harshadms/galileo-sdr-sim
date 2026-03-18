@@ -200,7 +200,7 @@ void generate_page(galtime_t g, ephem_t *eph, ionoutc_t *ionoutc, int *even_page
 		encode_int_to_bits(page, &offset, 2, 2); // Word type 0
 		encode_int_to_bits(page, &offset, 0, 88);
 		// WN
-		encode_int_to_bits(page, &offset, g.week - 1024, 12);
+		encode_int_to_bits(page, &offset, g.week, 12);
 		// TOW
 		encode_int_to_bits(page, &offset, TOW, 20);
 		break;
@@ -342,7 +342,7 @@ void generate_page(galtime_t g, ephem_t *eph, ionoutc_t *ionoutc, int *even_page
 		encode_int_to_bits(page, &offset, eph->svhlth >> 5, 1);	// E5b DVS
 		encode_int_to_bits(page, &offset, eph->svhlth, 1);		// E1B DVS
 		// WN
-		encode_int_to_bits(page, &offset, g.week-1024, 12);
+		encode_int_to_bits(page, &offset, g.week, 12);
 		// TOW
 		encode_int_to_bits(page, &offset, TOW, 20);
 		// Spare

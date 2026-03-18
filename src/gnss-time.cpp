@@ -21,8 +21,8 @@ void date2gal(const datetime_t *t, galtime_t *g)
     // Compute the number of days elapsed since Jan 5/Jan 6, 1980.
     de = ye * 365 + doy[t->m - 1] + t->d + lpdays - 6;
 
-    // Convert time to GPS weeks and seconds.
-    g->week = de / 7;
+    // Convert time to GST weeks and seconds.
+    g->week = de / 7 - 1024;
     g->sec = (double)(de % 7) * SECONDS_IN_DAY + t->hh * SECONDS_IN_HOUR + t->mm * SECONDS_IN_MINUTE + t->sec;
 
     return;
@@ -31,7 +31,7 @@ void date2gal(const datetime_t *t, galtime_t *g)
 void gal2date(const galtime_t *g, datetime_t *t) // checked
 {
     // Convert Julian day number to calendar date
-    int c = (int)(7 * g->week + floor(g->sec / 86400.0) + 2444245.0) + 1537;
+    int c = (int)(7 * (g->week + 1024) + floor(g->sec / 86400.0) + 2444245.0) + 1537;
     int d = (int)((c - 122.1) / 365.25);
     int e = 365 * d + d / 4;
     int f = (int)((c - e) / 30.6001);
