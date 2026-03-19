@@ -41,3 +41,4 @@ vendor/
 coverage/
 .cache/
 tmp/
+.gsd/
