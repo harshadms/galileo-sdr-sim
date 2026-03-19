@@ -265,6 +265,9 @@ void satpos(ephem_t eph, galtime_t g, double *pos, double *vel, double *clk)
     else if (tk < -SECONDS_IN_HALF_WEEK)
         tk += SECONDS_IN_WEEK;
 
+    // For E1-only receiver, clock bias is (af0 + af1*tk + af2*tk^2 + rel) - BGD(E1,E5b)
+    // The ICD 5.1.5 specifies that for E1/E5b dual-frequency this term is not needed, 
+    // but for single frequency E1, we MUST subtract BGD.
     clk[0] = eph.af0 + tk * (eph.af1 + tk * eph.af2) + relativistic - eph.bgde5b;
 
     clk[1] = eph.af1 + 2.0 * tk * eph.af2;

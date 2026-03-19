@@ -132,6 +132,7 @@ void sboc(short *dest, short *in_prn_ca, int len, int m, int n);
 void codegen_E1B(short *ca, int prn);
 void codegen_E1C(short *ca, int prn);
 void computeRange(range_t *rho, ephem_t eph, ionoutc_t *ionoutc, galtime_t g, double xyz[], int prn);
+double troposphericDelay(double azel[2], double height);
 void computeCodePhase(channel_t *chan, range_t rho1, double dt, galtime_t grx);
 
 /*! \brief Galileo Signal functions - inav-msg  .cpp */

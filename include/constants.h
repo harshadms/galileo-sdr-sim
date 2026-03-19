@@ -1,8 +1,9 @@
+#include <cmath>
 #include <cstddef> // for size_t
 #include <cstdint>
-#include <cmath>
 
-#define FLOAT_CARR_PHASE // For RKT simulation. Higher computational load, but smoother carrier phase.
+#define FLOAT_CARR_PHASE // For RKT simulation. Higher computational load, but
+                         // smoother carrier phase.
 
 #define TRUE (1)
 #define FALSE (0)
@@ -12,7 +13,7 @@
 
 /*! \brief Maximum number of user motion points */
 // #ifndef USER_MOTION_SIZE
-#define USER_MOTION_SIZE (3000) // max duration at 10Hz
+#define USER_MOTION_SIZE (72000) // max duration at 10Hz (2 hours)
 // #endif
 
 /*! \brief Maximum duration for static mode*/
@@ -37,7 +38,7 @@
 #define N_BIT_WORD 128
 /*! \brief Number of half page in a frame
  */
-#define N_PAGE 360
+#define N_PAGE 500
 /**  Number of page per sub frame
  */
 #define N_PAGE_SBF 15
@@ -60,7 +61,7 @@
 #define WGS84_RADIUS 6378137.0
 #define WGS84_ECCENTRICITY 0.0818191908426
 
-#define SPEED_OF_LIGHT 2.99792458e8
+#define SPEED_OF_LIGHT 299792458.0
 #define LAMBDA_L1 0.190293672798365
 
 /*! \brief Galileo L1 Carrier frequency */
@@ -72,8 +73,8 @@
 /*! RF-frontend constants */
 
 #define TX_FREQUENCY 1575420000
-#define TX_SAMPLERATE SAMP_RATE
-#define TX_BANDWIDTH SAMP_RATE*2
+#define TX_SAMPLERATE 2484000.0
+#define TX_BANDWIDTH TX_SAMPLERATE * 2
 
 #define NUM_BUFFERS 64
 #define SAMPLES_PER_BUFFER (64 * 1024)
@@ -83,9 +84,8 @@
 #define NUM_IQ_SAMPLES (TX_SAMPLERATE / 10)
 #define FIFO_LENGTH (NUM_IQ_SAMPLES * 4)
 
-static const int ccGenMatrix[2][7] = {
-    {1, 1, 1, 1, 0, 0, 1},
-    {1, 0, 1, 1, 0, 1, 1}};
+static const int ccGenMatrix[2][7] = {{1, 1, 1, 1, 0, 0, 1},
+                                      {1, 0, 1, 1, 0, 1, 1}};
 
 // Sampling data format
 #define SC01 (1)
@@ -94,10 +94,10 @@ static const int ccGenMatrix[2][7] = {
 #define FC32 (32)
 
 ///////////////////////////////////////////////
-const float SAMP_RATE = 2.6e6;
+const float SAMP_RATE = 2484000.0;
 
 // Conventional values employed in GPS ephemeris model (ICD-GPS-200)
-#define WGS_SQRT_GM 19964981.8432173887		// square root of GM
+#define WGS_SQRT_GM 19964981.8432173887 // square root of GM
 #define GM_EARTH 3.986005e14
 #define OMEGA_EARTH 7.2921151467e-5
 #define PI 3.141592653589793
@@ -115,7 +115,7 @@ const float SAMP_RATE = 2.6e6;
 #define SECONDS_IN_DAY 86400.0
 #define SECONDS_IN_HOUR 3600.0
 #define SECONDS_IN_MINUTE 60.0
-#define SPEED_OF_LIGHT 2.99792458e8
+#define SPEED_OF_LIGHT 299792458.0
 
 #define WGS84_RADIUS 6378137.0
 #define WGS84_ECCENTRICITY 0.0818191908426
@@ -150,37 +150,57 @@ const float SAMP_RATE = 2.6e6;
 #define POW2_M50 pow(2, -50)
 
 // definitions for different delay correction factor vs. frequency
-#define TGD_GAMME_L5 1.7932703213610586011342155009452	// (154/115)^2, also used for E5a, B2a
-#define TGD_GAMMA_E5b 1.703246193622522263717322637173226084458	// (77/59)^2, also used for B2b/B2I
+#define TGD_GAMME_L5                                                           \
+  1.7932703213610586011342155009452 // (154/115)^2, also used for E5a, B2a
+#define TGD_GAMMA_E5b                                                          \
+  1.703246193622522263717322637173226084458 // (77/59)^2, also used for B2b/B2I
 
 // carrier and code frequencies - Galileo parameters
-constexpr double GALILEO_E1_FREQ_HZ = 1575.42e6;             //!< Galileo E1 carrier frequency [Hz]
-constexpr double GALILEO_E1_CODE_CHIP_RATE_CPS = 1.023e6;    //!< Galileo E1 code rate [chips/s]
-constexpr double GALILEO_E1_CODE_PERIOD_S = 0.004;           //!< Galileo E1 code period [s]
-constexpr double GALILEO_E1_SUB_CARRIER_A_RATE_HZ = 1.023e6; //!< Galileo E1 sub-carrier 'a' rate [Hz]
-constexpr double GALILEO_E1_SUB_CARRIER_B_RATE_HZ = 6.138e6; //!< Galileo E1 sub-carrier 'b' rate [Hz]
-constexpr double GALILEO_E1_B_CODE_LENGTH_CHIPS = 4092.0;    //!< Galileo E1-B code length [chips]
-constexpr double GALILEO_E1_B_SYMBOL_RATE_BPS = 250.0;       //!< Galileo E1-B symbol rate [bits/second]
-constexpr uint32_t GALILEO_E1_CODE_PERIOD_MS = 4;            //!< Galileo E1 code period [ms]
-constexpr int32_t GALILEO_E1_B_SAMPLES_PER_SYMBOL = 1;       //!< (Galileo_E1_CODE_CHIP_RATE_HZ / Galileo_E1_B_CODE_LENGTH_CHIPS) / Galileo_E1_B_SYMBOL_RATE_BPS
-constexpr int32_t GALILEO_E1_C_SECONDARY_CODE_LENGTH = 25;   //!< Galileo E1-C secondary code length [chips]
+constexpr double GALILEO_E1_FREQ_HZ =
+    1575.42e6; //!< Galileo E1 carrier frequency [Hz]
+constexpr double GALILEO_E1_CODE_CHIP_RATE_CPS =
+    1.023e6; //!< Galileo E1 code rate [chips/s]
+constexpr double GALILEO_E1_CODE_PERIOD_S =
+    0.004; //!< Galileo E1 code period [s]
+constexpr double GALILEO_E1_SUB_CARRIER_A_RATE_HZ =
+    1.023e6; //!< Galileo E1 sub-carrier 'a' rate [Hz]
+constexpr double GALILEO_E1_SUB_CARRIER_B_RATE_HZ =
+    6.138e6; //!< Galileo E1 sub-carrier 'b' rate [Hz]
+constexpr double GALILEO_E1_B_CODE_LENGTH_CHIPS =
+    4092.0; //!< Galileo E1-B code length [chips]
+constexpr double GALILEO_E1_B_SYMBOL_RATE_BPS =
+    250.0; //!< Galileo E1-B symbol rate [bits/second]
+constexpr uint32_t GALILEO_E1_CODE_PERIOD_MS =
+    4; //!< Galileo E1 code period [ms]
+constexpr int32_t GALILEO_E1_B_SAMPLES_PER_SYMBOL =
+    1; //!< (Galileo_E1_CODE_CHIP_RATE_HZ / Galileo_E1_B_CODE_LENGTH_CHIPS) /
+       //!< Galileo_E1_B_SYMBOL_RATE_BPS
+constexpr int32_t GALILEO_E1_C_SECONDARY_CODE_LENGTH =
+    25; //!< Galileo E1-C secondary code length [chips]
 constexpr int32_t GALILEO_E1_NUMBER_OF_CODES = 50;
 
-constexpr double GNSS_OMEGA_EARTH_DOT = 7.2921151467e-5; //!< Default Earth rotation rate, [rad/s]
-constexpr double SPEED_OF_LIGHT_M_S = 299792458.0;       //!< Speed of light in vacuum [m/s]
-constexpr double SPEED_OF_LIGHT_M_MS = 299792.4580;      //!< Speed of light in vacuum [m/ms]
+constexpr double GNSS_OMEGA_EARTH_DOT =
+    7.2921151467e-5; //!< Default Earth rotation rate, [rad/s]
+constexpr double SPEED_OF_LIGHT_M_S =
+    299792458.0; //!< Speed of light in vacuum [m/s]
+constexpr double SPEED_OF_LIGHT_M_MS =
+    299792.4580; //!< Speed of light in vacuum [m/ms]
 
 // Physical constants for Galileo
-constexpr double GALILEO_GM = 3.986004418e14;  //!< Geocentric gravitational constant[m^3/s^2], OS SIS ICD v2.0, pag. 44
-constexpr double GALILEO_F = -4.442807309e-10; //!< Constant, [s/(m)^(1/2)]. OS SIS ICD v2.0, pag. 47
+constexpr double GALILEO_GM =
+    3.986004418e14; //!< Geocentric gravitational constant[m^3/s^2], OS SIS ICD
+                    //!< v2.0, pag. 44
+constexpr double GALILEO_F =
+    -4.442807309e-10; //!< Constant, [s/(m)^(1/2)]. OS SIS ICD v2.0, pag. 47
 
 constexpr double GNSS_PI = 3.1415926535898; //!< pi constant as defined for GNSS
 constexpr double HALF_PI = GNSS_PI / 2.0;   //!< pi/2
 constexpr double TWO_PI = 2.0 * GNSS_PI;    //!< 2 * pi
 
 // Constants for scaling the ephemeris found in the data message
-// the format is the following: TWO_N5 -> 2^-5, TWO_P4 -> 2^4, PI_TWO_N43 -> Pi*2^-43, etc etc
-// Additionally some of the PI*2^N terms are used in the tracking stuff
+// the format is the following: TWO_N5 -> 2^-5, TWO_P4 -> 2^4, PI_TWO_N43 ->
+// Pi*2^-43, etc etc Additionally some of the PI*2^N terms are used in the
+// tracking stuff
 //   TWO_PX ==> 2^X
 //   TWO_NX ==> 2^-X
 //   PI_TWO_NX ==> Pi*2^-X
@@ -190,7 +210,8 @@ constexpr double R2D = 57.2957795131;   //!< rad to deg
 constexpr double SC2RAD = GNSS_PI;      //!< semi-circle to radian (IS-GPS)
 constexpr double AS2R = D2R / 3600.0;   //!< arc sec to radian
 
-constexpr double AU = 149597870691.0; //!< 1 Astronomical Unit AU (m) distance from Earth to the Sun.
+constexpr double AU = 149597870691.0; //!< 1 Astronomical Unit AU (m) distance
+                                      //!< from Earth to the Sun.
 
 // Constants related to the calculation of NequickG ionospheric algorithm
 constexpr double NEQUICK_G_ZENITH0 = 86.23292796211615;
@@ -207,11 +228,15 @@ constexpr int NEQUICK_G_KRONROD_K15_POINT_COUNT = (15);
 constexpr int NEQUICK_G_KRONROD_G7_POINT_COUNT = (7);
 
 // optimum parameters
-constexpr uint32_t GALILEO_E1_OPT_ACQ_FS_SPS = 2000000; //!< Sampling frequency that maximizes the acquisition SNR while using a non-multiple of chip rate
+constexpr uint32_t GALILEO_E1_OPT_ACQ_FS_SPS =
+    2000000; //!< Sampling frequency that maximizes the acquisition SNR while
+             //!< using a non-multiple of chip rate
 
-constexpr int32_t GALILEO_E1_HISTORY_DEEP = 100; //!< Observable history length for interpotalion
+constexpr int32_t GALILEO_E1_HISTORY_DEEP =
+    100; //!< Observable history length for interpotalion
 
-constexpr char GALILEO_E1_SECONDARY_CODE[] = {0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1, 0, 1, 1, 0, 1, 1, 0, 0, 1, 0};
+constexpr char GALILEO_E1_SECONDARY_CODE[] = {
+    0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1, 0, 1, 1, 0, 1, 1, 0, 0, 1, 0};
 const int sync_pattern[10] = {0, 1, 0, 1, 1, 0, 0, 0, 0, 0};
 
 #define COS_TAB_LENGTH 2048
@@ -221,7 +246,6 @@ extern int cosTable[COS_TAB_LENGTH];
 extern int sinTable[COS_TAB_LENGTH];
 
 void init_tables();
-
 
 // Galileo E1 primary codes
 constexpr size_t GALILEO_E1_B_PRIMARY_CODE_STR_LENGTH = 1023;

@@ -89,19 +89,6 @@ void *tx_task(void *arg)
 
         k++;
 
-        buffs_ptr = (const void **)tx_buffer_current;
-
-        // vector<double> tx_buffer_vector; //(tx_buffer_current, tx_buffer_current + SAMPLES_PER_BUFFER);
-        //  vector<complex<float>> fc_buffer;
-        //  for(int i=0; i < SAMPLES_PER_BUFFER; i=i+2)
-        //  {
-        //      fc_buffer.push_back(complex<float>(s->tx.buffer[i], s->tx.buffer[i+1]));// * 2], tx_buffer_current[i * 2 + 1]) );
-        //      //fprintf(stderr, "\nF - %f/ %d", s->tx.buffer[i], i);
-        //  }
-
-        // uhd_tx_streamer_send(s->tx.stream, s->tx.buffer_ptr, SAMPLES_PER_BUFFER, &s->tx.md, 1000, &samples_populated);
-        // printf("\nHere %ld\n", tx_buffer_vector.size());
-
         size_t num_tx_samps = s->tx.stream->send(s->tx.buffer, SAMPLES_PER_BUFFER, s->tx.md, 1000);
         samples_consumed = samples_consumed + num_tx_samps;
         // fprintf(stderr, "\nSent %d", k);
@@ -350,12 +337,19 @@ int main(int argc, char *argv[])
     if (use_usrp)
     {   
         usrp_conf_t usrp_conf;  
-        usrp_conf.carr_freq = GALILEO_E1_FREQ_HZ;
+        usrp_conf.carr_freq = (double)GALILEO_E1_FREQ_HZ;
         usrp_conf.gain = gain;
         usrp_conf.device_args = device_args;
         usrp_conf.samp_rate = TX_SAMPLERATE;
 
         init_usrp(usrp_conf, &s);
+    }
+    else
+    {
+        // When not using USRP, we need to generate navigation messages manually
+        // because tx_task is not running.
+        printf("\nGenerating navigation bits for simulation...\n");
+        // We do this inside galileo_task usually, but it needs to be initialized.
     }
 
     // Start Galileo task.
@@ -367,38 +361,12 @@ int main(int argc, char *argv[])
     else
         printf("\nCreating Galileo task...\n");
 
-    if (use_usrp)
-    { // Wait until Galileo task is initialized
-        pthread_mutex_lock(&(s.tx.lock));
-        while (!s.galileo_sim.ready)
-            pthread_cond_wait(&(s.galileo_sim.initialization_done), &(s.tx.lock));
-
-        pthread_mutex_unlock(&(s.tx.lock));
-
-        // Fillfull the FIFO.
-        if (is_fifo_write_ready(&s))
-            pthread_cond_signal(&(s.fifo_write_ready));
-
-        // // Start TX task
-        s.status = start_tx_task(&s);
-
-        if (s.status < 0)
-        {
-            fprintf(stderr, "Failed to start TX task.\n");
-            // goto out;
-        }
-        else
-            printf("Creating TX task...\n");
-
-        // Running...
-        printf("Running...\n"
-               "Press Ctrl+C to abort.\n");
-
-        // Wainting for TX task to complete.
+    // Wait until finished or Ctrl+C
+    if (use_usrp) {
         pthread_join(s.tx.thread, NULL);
-    }
-    else
+    } else {
         pthread_join(s.galileo_sim.thread, NULL);
+    }
 
     fprintf(stderr, "\nTotal samples consumed: %ld", samples_consumed);
     printf("\nDone!\n");

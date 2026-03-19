@@ -10,7 +10,10 @@ void hex_to_binary_converter(short *dest, bool c1, int prn)
 {
     int index = 0;
 
-    for (int i = 0; i < 1024; i++)
+    // Galileo E1 codes are 4092 chips. 
+    // Each hex character represents 4 chips.
+    // 1023 * 4 = 4092.
+    for (int i = 0; i < 1023; i++)
     {
         char from;
         if (!c1)
@@ -197,18 +200,19 @@ void hex_to_binary_converter(short *dest, bool c1, int prn)
  */
 void sboc(short *dest, short *in_prn_ca, int len, int m, int n)
 {
-    constexpr uint32_t length_in = CA_SEQ_LEN_E1;
-    const auto period = static_cast<uint32_t>(CA_SEQ_LEN_E1 / length_in);
-
-    int i, j, N = 2 * m / n;
-    for (i = 0; i < len; i++)
-        for (j = 0; j < N; j++)
-            dest[N * i + j] = in_prn_ca[i];
-
-    // Mix sub carrier
-    for (i = 0; i < N * len / 2; i++)
+    // Galileo E1 BOC(1,1) modulation
+    // Each chip of the primary code (1.023 Mcps) is mixed with a subcarrier (1.023 MHz)
+    // The subcarrier has two 'half-chips' per code chip.
+    // Length of 'dest' should be 2 * len.
+    
+    for (int i = 0; i < len; i++)
     {
-        dest[2 * i] = -dest[2 * i];
+        // For BOC(1,1), we have 2 subcarrier chips per code chip
+        // Subcarrier sequence for one code chip is [-1, 1] OR [1, -1] depending on implementation
+        // According to Galileo ICD, the subcarrier is s_E1_boc = sgn(sin(pi * f_sc * t))
+        // This results in two sub-chips per code chip with opposite signs.
+        dest[2 * i] = (short)(in_prn_ca[i]);      // First half-chip
+        dest[2 * i + 1] = (short)(-in_prn_ca[i]); // Second half-chip (inverted)
     }
 }
 
@@ -219,16 +223,18 @@ void sboc(short *dest, short *in_prn_ca, int len, int m, int n)
 void codegen_E1B(short *ca, int prn)
 {
     // Get the PRN code using the hex to binary converter
-    short *tmp_ca = (short *)malloc(CA_SEQ_LEN_E1 * sizeof(short));
+    short tmp_ca[CA_SEQ_LEN_E1];
     hex_to_binary_converter(tmp_ca, false, prn - 1);
+    // SBOC produces 2 samples per chip, so destination 'ca' must be 2*CA_SEQ_LEN_E1
     sboc(ca, tmp_ca, CA_SEQ_LEN_E1, 1, 1);
 }
 
 void codegen_E1C(short *ca, int prn)
 {
     // Get the PRN code using the hex to binary converter
-    short *tmp_ca = (short *)malloc(CA_SEQ_LEN_E1 * sizeof(short));
+    short tmp_ca[CA_SEQ_LEN_E1];
     hex_to_binary_converter(tmp_ca, true, prn - 1);
+    // SBOC produces 2 samples per chip, so destination 'ca' must be 2*CA_SEQ_LEN_E1
     sboc(ca, tmp_ca, CA_SEQ_LEN_E1, 1, 1);
 }
 
@@ -257,47 +263,68 @@ void computeRange(range_t *rho, ephem_t eph, ionoutc_t *ionoutc, galtime_t g, do
     subVect(los, pos, xyz);
     tau = normVect(los) / SPEED_OF_LIGHT;
 
-    // Extrapolate the satellite position backwards to the transmission time.
-    pos[0] -= vel[0] * tau;
-    pos[1] -= vel[1] * tau;
-    pos[2] -= vel[2] * tau;
-
-    // Earth rotation correction. The change in velocity can be neglected.
-    xrot = pos[0] + pos[1] * GNSS_OMEGA_EARTH_DOT * tau;
-    yrot = pos[1] - pos[0] * GNSS_OMEGA_EARTH_DOT * tau;
-    pos[0] = xrot;
-    pos[1] = yrot;
+    // Sagnac effect correction (Earth rotation during signal propagation tau)
+    // The ECEF frame rotates CCW with the Earth. To express the satellite's position
+    // at the time of transmission in the ECEF frame at the time of reception, we must
+    // rotate the satellite's coordinates CW by alpha = omega * tau.
+    double alpha = GNSS_OMEGA_EARTH_DOT * tau;
+    double sin_a = sin(alpha);
+    double cos_a = cos(alpha);
+    double x_new = pos[0] * cos_a + pos[1] * sin_a;  // Formal CW rotation
+    double y_new = -pos[0] * sin_a + pos[1] * cos_a;
+    pos[0] = x_new;
+    pos[1] = y_new;
 
     // New observer to satellite vector and satellite range.
     subVect(los, pos, xyz);
     range = normVect(los);
 
-    // range = sqrt(std::pow((xyz[0] - pos[0]), 2) + std::pow((xyz[1] - pos[1]),
-    // 2) + std::pow((xyz[2] - pos[2]), 2));
-
     rho->d = range;
 
-    // Pseudorange.
+    // Pseudorange (Initial: geometric + clock bias)
     rho->range = range - SPEED_OF_LIGHT * clk[0];
-
-    double r[3] = {range, range - SPEED_OF_LIGHT * clk[0], 0};
 
     // Azimuth and elevation angles.
     double satLLH[3];
-    xyz2llh(xyz, llh);     //convert userXYZ to llh
-    xyz2llh(pos, satLLH);  //convert satXYZ to llh
+    xyz2llh(xyz, llh);     // convert userXYZ to llh
+    xyz2llh(pos, satLLH);  // convert satXYZ to llh
     ltcmat(llh, tmat);
     ecef2neu(los, tmat, neu);
     neu2azel(rho->azel, neu);
 
-    // Add ionospheric delay
+    // Ionospheric delay
     double frequency = CARR_FREQ;
-	rho->iono_delay = ionosphericDelay(ionoutc, g, llh, satLLH, rho->azel, frequency);
+    rho->iono_delay = ionosphericDelay(ionoutc, g, llh, satLLH, rho->azel, frequency);
 
-	rho->range += rho->iono_delay;
+    // Tropospheric delay (Saastamoinen model)
+    double height = llh[2];
+    rho->tropo_delay = troposphericDelay(rho->azel, height);
+
+    // Final Pseudorange: sum all delays (they INCREASE travel time)
+    rho->range += rho->iono_delay + rho->tropo_delay;
     rho->g = g;
 
     return;
+}
+
+/*! \brief Saastamoinen tropospheric delay model
+ *  \param azel Azimuth and Elevation in radians
+ *  \param height Receiver height in meters
+ *  \return Tropospheric delay in meters
+ */
+double troposphericDelay(double azel[2], double height)
+{
+    const double Pressure = 1013.25; // Standard pressure at sea level [hPa]
+    const double Temp = 288.15;      // Standard temperature at sea level [K]
+    const double Humid = 0.5;       // Relative humidity (typical)
+
+    double el = azel[1]; // Elevation in radians
+    if (el < 0.05) el = 0.05; // Elevation mask to prevent singularity
+
+    // Saastamoinen model: ZTD = 0.002277 * (Pressure + (1255/Temp + 0.05) * PartialPressureWaterVapor)
+    // Simplified version: 2.31 * exp(-0.000116 * height) / sin(el)
+    double ztd = 2.312 * exp(-0.000116 * height);
+    return ztd / sin(el);
 }
 
 /*! \brief Compute the code phase for a given channel (satellite)
@@ -305,43 +332,18 @@ void computeRange(range_t *rho, ephem_t eph, ionoutc_t *ionoutc, galtime_t g, do
  *  \param[in] rho1 Current range, after \a dt has expired
  *  \param[in dt delta-t (time difference) in seconds
  */
-void computeCodePhase(channel_t *chan, range_t rho1, double dt, galtime_t grx) // checked
+void computeCodePhase(channel_t *chan, range_t rho1, double dt, galtime_t grx)
 {
-    double ms;
-    int ims = (unsigned int)ms / 4;
     double rhorate;
 
     // Pseudorange rate.
     rhorate = (rho1.range - chan->rho0.range) / dt;
 
     // Carrier and code frequency.
-    chan->f_carr = (-rhorate / LAMBDA_E1); // + GALILEO_E1_SUB_CARRIER_A_RATE_HZ;
-
+    chan->f_carr = (-rhorate / LAMBDA_E1); 
     chan->f_code = CODE_FREQ_E1 + chan->f_carr * CARR_TO_CODE_E1;
-
-    ms = (grx.sec - rho1.range / SPEED_OF_LIGHT) * 1000.0;
-
-    int ipage = ms / 2000.0; // 1 word = 250 symbols = 1000ms = 1s
-
-    ms -= ipage * 2000;
-
-    int ibit = (unsigned int)ms / 4; // 1 symbol = 1 code = 4ms
-    ms -= ibit * 4;
-    double code_phase = ms / 4 * CA_SEQ_LEN_E1;
-
-    ms -= ipage * PAGE_TRANS_TIME_ms;
-
-    ibit = (ibit + (N_SYM_PAGE / 2)) % N_SYM_PAGE;
-
-    chan->code_phase = code_phase;
-
-    chan->ibit = ibit;         // gal: 1 bit = 4 ms
-    chan->ipage = ipage % 360; // Number of half pages in a frame
-    chan->icode = ims;         // 1 code = 4 ms
 
     // Save current pseudorange
     chan->g0 = grx;
-
     chan->rho0 = rho1;
-    return;
 }

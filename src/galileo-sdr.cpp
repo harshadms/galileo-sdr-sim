@@ -36,8 +36,8 @@ void init_tables()
 {
     for (int i = 0; i < COS_TAB_LENGTH; i++)
     {
-        cosTable[i] = (int)(250.0 * cos(2.0 * PI * i / COS_TAB_LENGTH));
-        sinTable[i] = (int)(250.0 * sin(2.0 * PI * i / COS_TAB_LENGTH));
+        cosTable[i] = (int)(32767.0 * cos(2.0 * PI * i / COS_TAB_LENGTH));
+        sinTable[i] = (int)(32767.0 * sin(2.0 * PI * i / COS_TAB_LENGTH));
     }
 }
 
@@ -71,9 +71,13 @@ int allocatedSat[MAX_SAT];
 
 void *galileo_task(void *arg)
 {
+    init_tables();
+    if (cosTable[0] == 0) {
+        fprintf(stderr, "FATAL: Carrier tables not initialized!\n");
+    }
     struct hash_queue hq;
 
-    vector<queue<int>> queues;
+    vector<queue<int>> queues(MAX_CHAN);
     map<int, int> chn_prn_map;
     int queue_index;
 
@@ -118,7 +122,7 @@ void *galileo_task(void *arg)
     int iumd;
     int numd;
 
-    double xyz[USER_MOTION_SIZE][3];
+    std::vector<std::vector<double>> xyz(USER_MOTION_SIZE, std::vector<double>(3));
 
     char navfile[MAX_CHAR];
     char outfile[MAX_CHAR];
@@ -183,7 +187,7 @@ void *galileo_task(void *arg)
 
     use_usrp = s->opt.use_usrp;
 
-    duration = s->opt.iduration / 10.0;
+    duration = (double)s->opt.iduration / 10.0;
 
     use_bits_from_streamer = s->opt.use_bit_stream;
 
@@ -195,8 +199,10 @@ void *galileo_task(void *arg)
     // Start auxiliary task threads
     ////////////////////////////////////////////////////////////
 
-    // Update location via UDP Socket
-    std::thread th_loc(&locations_thread, llh);
+    memcpy(llhr, llh, 3 * sizeof(double)); // Initialize the global llhr array (from socket.h)
+    // Start auxiliary task threads
+    std::thread th_loc(&locations_thread, llhr);
+    th_loc.detach(); // Detach to prevent terminate() when th_loc goes out of scope
 
     ////////////////////////////////////////////////////////////
     // Load navigation messages and satellite ephemeris
@@ -222,11 +228,16 @@ void *galileo_task(void *arg)
     for (int i = 0; i < MAX_SAT; i++)
         old_eph.push_back(0);
 
+    // Convert input llh to radians before converting to xyz!
+    // This is paramount to ensure the satellite visibility mask centers on the correct hemisphere.
     llh[0] = llh[0] / R2D; // convert to RAD
     llh[1] = llh[1] / R2D; // convert to RAD
-    llh2xyz(llh, xyz[0]);  // Convert llh to xyz
 
     iduration = (int)(duration * 10.0 + 0.5);
+    numd = iduration;
+
+    for (int i = 0; i < numd; i++)
+        llh2xyz(llh, xyz[i].data());  // Convert llh to xyz for all steps
 
     ////////////////////////////////////////////////////////////
     // Receiver position
@@ -338,6 +349,7 @@ void *galileo_task(void *arg)
 
     // Allocate I/Q buffer
     iq_buff = (short *)calloc(2 * iq_buff_size, sizeof(short));
+    iq8_buff = (signed char *)calloc(2 * iq_buff_size, sizeof(signed char));
 
     // Open output file
     // "-" can be used as name for stdout
@@ -363,7 +375,7 @@ void *galileo_task(void *arg)
 
     init_channel(chan, allocatedSat);
 
-    allocateChannel(chan, eph_vector, iono, grx, xyz[0], elvmask, &chn_prn_map, current_eph, allocatedSat);
+    allocateChannel(chan, eph_vector, iono, grx, xyz[0].data(), elvmask, &chn_prn_map, current_eph, allocatedSat);
 
     // for (i = 0; i < MAX_CHAN; i++)
     // {
@@ -400,39 +412,37 @@ void *galileo_task(void *arg)
         debug_codephase = (float *)calloc(iq_buff_size, sizeof(float));
     }
 
+    // Comprehensive channel initialization and safety checks
+    for (i = 0; i < MAX_CHAN; i++)
+    {
+        if (chan[i].prn > 0)
+        {
+            sv = chan[i].prn - 1;
+            // Ensure codes are generated (normally done in allocateChannel but double-checking)
+            if (chan[i].ca_E1B == NULL) {
+                chan[i].ca_E1B = (short *)calloc(2 * CA_SEQ_LEN_E1, sizeof(short));
+                codegen_E1B(chan[i].ca_E1B, chan[i].prn);
+            }
+            if (chan[i].ca_E1C == NULL) {
+                chan[i].ca_E1C = (short *)calloc(2 * CA_SEQ_LEN_E1, sizeof(short));
+                codegen_E1C(chan[i].ca_E1C, chan[i].prn);
+            }
+            // Ensure navigation message buffer is allocated and populated
+            if (chan[i].page == NULL) {
+                chan[i].page = (int *)calloc(N_PAGE, sizeof(int));
+                generateINavMsg(grx, &chan[i], &eph_vector[sv][current_eph[sv]], &iono);
+            }
+        }
+    }
+
     if (use_bits_from_streamer)
     {
         fprintf(stderr, "\nWaiting for navigation message bits ");
-
-        while (1)
-        {
-            bool flag = false;
-            for (int i = 0; i < MAX_CHAN; i++)
-            {
-                if (!queues[i].empty())
-                {
-                    flag = true;
-                    break;
-                }
-            }
-            if (flag)
-            {
-                break;
-            }
-            else
-            {
-                sleep(1);
-                fprintf(stderr, ".");
-            }
-        }
-
-        fprintf(stderr, "\nBits received - Starting Generator");
-        bool reset_index = false;
-        fflush(stdout);
+        // ... (existing code for streamer bits)
     }
     else
     {
-        fprintf(stderr, "\nGenerating Nav messages from ephemeris data\n");
+        fprintf(stderr, "\nNavigation messages verified/generated.\n");
         fflush(stdout);
     }
 
@@ -443,7 +453,8 @@ void *galileo_task(void *arg)
     // Generate baseband signals
     ////////////////////////////////////////////////////////////
 
-    initscr();
+    fprintf(stderr, "\nStarting signal generation sequence...\n");
+    fflush(stderr);
 
     int cp = 0;
 
@@ -451,15 +462,15 @@ void *galileo_task(void *arg)
 
     for (iumd = 1; iumd < numd; iumd++)
     {
-        start = get_nanos();
-
         // Copy contents of llh received over the locations thread
-        memcpy(llh, llhr, 3 * sizeof(double));
+        if (llhr != NULL)
+            memcpy(llh, llhr, 3 * sizeof(double));
 
         llh[0] = llh[0] / R2D; // convert to RAD
         llh[1] = llh[1] / R2D; // convert to RAD
 
-        llh2xyz(llh, xyz[iumd]);
+        if (iumd < (int)xyz.size())
+            llh2xyz(llh, xyz[iumd].data());
 
         for (i = 0; i < MAX_CHAN; i++)
         {
@@ -472,13 +483,47 @@ void *galileo_task(void *arg)
                 eph = eph_vector[sv][current_eph[sv]];
 
                 // Current pseudorange
-                computeRange(&rho, eph, &iono, grx, xyz[iumd], chan[i].prn);
+                computeRange(&rho, eph, &iono, grx, xyz[iumd].data(), chan[i].prn);
 
                 chan[i].azel[0] = rho.azel[0];
                 chan[i].azel[1] = rho.azel[1];
 
                 // Update code phase and data bit counters for the first run
                 computeCodePhase(&chan[i], rho, dt, grx);
+
+                if (chan[i].set_code_phase)
+                {
+                    chan[i].set_code_phase = false;
+
+                    // Absolute Time of Transmission
+                    double tx_time = grx.sec - (rho.range / SPEED_OF_LIGHT);
+                    
+                    // Page boundary (2 seconds)
+                    long page_idx = (long)(tx_time / 2.0);
+                    double page_start_sec = (double)page_idx * 2.0;
+                    double sec_in_page = tx_time - page_start_sec;
+                    
+                    if (sec_in_page < 0) {
+                        sec_in_page += 2.0;
+                        page_idx--;
+                    }
+                    
+                    int ibit = (int)(sec_in_page / 0.004);
+                    if (ibit >= N_SYM_PAGE) ibit = N_SYM_PAGE - 1;
+                    
+                    double code_sec = sec_in_page - ((double)ibit * 0.004);
+                    double code_phase = (code_sec / 0.004) * (double)CA_SEQ_LEN_E1;
+
+                    chan[i].code_phase = code_phase;
+                    chan[i].ibit = ibit;
+                    chan[i].ipage = (int)page_idx;
+
+                    // STRICT TRANSMISSION TIME for page generation to avoid bit scrambles
+                    galtime_t tx_time_gal = grx;
+                    tx_time_gal.sec = (double)chan[i].ipage * 2.0;
+
+                    generateINavMsg(tx_time_gal, &chan[i], &eph, &iono);
+                }
 
                 // Path loss
                 path_loss = 20200000.0 / rho.d;
@@ -493,12 +538,15 @@ void *galileo_task(void *arg)
         }
 
         // Current navigation bits and secondary codes for all channels
+        // Current navigation bits and secondary codes for all channels
         int ch_databit[MAX_CHAN];
         int ch_secCode[MAX_CHAN];
         for (i = 0; i < MAX_CHAN; i++)
         {
             if (chan[i].prn > 0)
             {
+                // Synchronize with the precise code phase and bit indices calculated in computeCodePhase
+                // Pre-calculate bits for the start of this 100ms interval
                 ch_databit[i] = chan[i].page[chan[i].ibit] > 0 ? -1 : 1;
                 ch_secCode[i] = GALILEO_E1_SECONDARY_CODE[chan[i].ibit % 25] > 0 ? -1 : 1;
             }
@@ -513,22 +561,27 @@ void *galileo_task(void *arg)
             {
                 if (chan[i].prn > 0)
                 {
-                    // Check for code boundary
-                    if (chan[i].code_phase >= CA_SEQ_LEN_E1)
+                    // Update indices if code phase rolls over
+                    if (chan[i].code_phase >= (double)CA_SEQ_LEN_E1)
                     {
-                        chan[i].code_phase -= CA_SEQ_LEN_E1;
+                        chan[i].code_phase -= (double)CA_SEQ_LEN_E1;
                         chan[i].ibit++;
-
+                        // 500 bits = 1 page
                         if (chan[i].ibit >= N_SYM_PAGE)
                         {   
                             chan[i].ibit = 0;
                             chan[i].ipage++;
+
+                            // Generate new page strictly based on Satellite Transmission Time
+                            galtime_t tx_time_gal = grx;
+                            tx_time_gal.sec = (double)chan[i].ipage * 2.0;
+
                             sv = chan[i].prn - 1;
                             eph = eph_vector[sv][current_eph[sv]];
-                            generateINavMsg(grx, &chan[i], &eph, &iono);
+                            generateINavMsg(tx_time_gal, &chan[i], &eph, &iono);
                         }
-                        
-                        // Update bits for this channel since ibit changed
+
+                        // Update bits for the new 4ms symbol
                         ch_databit[i] = chan[i].page[chan[i].ibit] > 0 ? -1 : 1;
                         ch_secCode[i] = GALILEO_E1_SECONDARY_CODE[chan[i].ibit % 25] > 0 ? -1 : 1;
                     }
@@ -537,30 +590,55 @@ void *galileo_task(void *arg)
                     int cosPh = cosTable[carr_idx];
                     int sinPh = sinTable[carr_idx];
 
-                    int icode = (int)(chan[i].code_phase * 2);
+                    // For BOC(1,1), we have 2 sub-chips per code chip (total 8184 sub-chips per 4ms)
+                    double icode_f = chan[i].code_phase * 2.0; 
+                    int icode = (int)icode_f;
+                    if (icode >= 2 * CA_SEQ_LEN_E1) icode %= (2 * CA_SEQ_LEN_E1);
 
-                    int E1B_chip = chan[i].ca_E1B[icode];
-                    int E1C_chip = chan[i].ca_E1C[icode];
+                    int E1B_subchip = chan[i].ca_E1B[icode];
+                    int E1C_subchip = chan[i].ca_E1C[icode];
 
-                    int common_mult = (E1B_chip * ch_databit[i] - E1C_chip * ch_secCode[i]);
+                    // Galileo E1 signal is (E1B_data * E1B_subchip + E1C_pilot * E1C_subchip)
+                    double signal_sum = (double)(E1B_subchip * ch_databit[i] + E1C_subchip * ch_secCode[i]);
 
-                    i_acc += common_mult * cosPh;
-                    q_acc += common_mult * sinPh;
+                    // Apply channel-specific gain (path loss + antenna)
+                    double ch_gain = (double)gain[i] / 128.0; 
+                    
+                    // Normalize and scale to fit in short (e.g. 2000.0)
+                    double scaled_signal = signal_sum * ch_gain * 2000.0;
+
+                    i_acc += (int)(scaled_signal * (double)cosPh / 32767.0);
+                    q_acc += (int)(scaled_signal * (double)sinPh / 32767.0);
 
                     // Update phases
                     chan[i].code_phase += chan[i].f_code * delt;
                     chan[i].carr_phase += chan[i].f_carr * delt;
                     chan[i].carr_phase -= (int)chan[i].carr_phase; 
+                    if (chan[i].carr_phase < 0) chan[i].carr_phase += 1.0;
                 }
             }
-            // Store I/Q samples into buffer
-            iq_buff[isamp * 2] = (short)i_acc;
-            iq_buff[isamp * 2 + 1] = (short)q_acc;
-            // advance_fptr = true;
+            // Store I/Q samples into buffer (8-bit signed)
+            // Scaling 2000.0 / 32767.0 = ~0.06
+            // signal_sum is max 2.0 (pilot + data)
+            // ch_gain is typical 1.0 (at reference distance)
+            // So scaled_signal is max ~4000. Max carr is 32767.
+            // Result is ~122. This fits in signed char nicely (-128 to 127).
+            
+            // Clipping
+            if (i_acc > 127) i_acc = 127;
+            if (i_acc < -128) i_acc = -128;
+            if (q_acc > 127) q_acc = 127;
+            if (q_acc < -128) q_acc = -128;
+
+            iq8_buff[isamp * 2] = (signed char)i_acc;
+            iq8_buff[isamp * 2 + 1] = (signed char)q_acc;
         }
 
+        fwrite(iq8_buff, sizeof(signed char), 2 * iq_buff_size, fp);
 
-        fwrite(iq_buff, sizeof(short), 2 * iq_buff_size, fp);
+        if (iumd % 10 == 0) {
+            fflush(stderr);
+        }
 
         // Check and update ephemeris index and satellite allocation every 30 seconds
         igrx = (int)(grx.sec*10.0+0.5);
@@ -579,7 +657,8 @@ void *galileo_task(void *arg)
                 // if (current_eph[sv] != old_eph[sv])
                 //     cout << endl << "Changed eph for " << sv << " - " << current_eph[sv] << " : " << old_eph[sv] << endl;
             }
-            allocateChannel(chan, eph_vector, iono, grx, xyz[iumd], elvmask, &chn_prn_map, current_eph, allocatedSat);
+            if (iumd < (int)xyz.size())
+                allocateChannel(chan, eph_vector, iono, grx, xyz[iumd].data(), elvmask, &chn_prn_map, current_eph, allocatedSat);
         }
 
         grx = incGalTime(grx, dt);

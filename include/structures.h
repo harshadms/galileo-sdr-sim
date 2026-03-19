@@ -1,4 +1,5 @@
-#include "galileo-sdr.h"
+#ifndef STRUCTURES_H
+#define STRUCTURES_H
 #include <uhd/usrp/multi_usrp.hpp>
 #include <queue>
 
@@ -134,6 +135,7 @@ typedef struct
     double d; // geometric distance
     double azel[2];
     double iono_delay;
+    double tropo_delay;
 } range_t;
 
 /*! \brief Structure representing a Channel */
@@ -200,3 +202,5 @@ typedef struct
 
     double time;
 } sim_t;
+
+#endif // STRUCTURES_H
