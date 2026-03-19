@@ -181,6 +181,8 @@ typedef struct
     int iono_enable;
     bool use_usrp;
     bool use_bit_stream;
+    int auto_download;
+    char rinex_cache_dir[256];
 } option_t;
 
 typedef struct

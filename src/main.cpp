@@ -1,6 +1,8 @@
 #define _CRT_SECURE_NO_WARNINGS
 
 #include "../include/galileo-sdr.h"
+#include "../include/downloader.h"
+#include "../include/logging.h"
 #include <math.h>
 #include <unistd.h>
 #include <vector>
@@ -27,7 +29,7 @@ long int samples_consumed = 0l;
 
 void init_sim(sim_t *s)
 {
-    printf("\nGalileo SIM initiation started.");
+    log_info("Galileo SDR simulator initialization started");
 
     pthread_mutex_init(&(s->tx.lock), NULL);
     // s->tx.error = 0;
@@ -132,7 +134,9 @@ void usage(char *progname)
     printf(
         "Usage: %s [options]\n"
         "Options:\n"
-        "  -e <Ephemeris>   RINEX navigation file for Galileo ephemerides (required)\n"
+        "  -e <Ephemeris>   RINEX navigation file for Galileo ephemerides (optional with -D)\n"
+        "  -D               Auto-download latest Galileo navigation file (CDDIS/Garner/CENO)\n"
+        "  -r <Cache Dir>   RINEX cache directory (default: ./rinex_cache)\n"
         "  -o <File sink>   File to store IQ samples\n"
         "  -l <location>    Lat,Lon,Hgt (static mode) e.g. 35.274,137.014,100\n"
         "  -t <date,time>   Scenario start time YYYY/MM/DD,hh:mm:ss\n"
@@ -155,6 +159,9 @@ int main(int argc, char *argv[])
         usage(argv[0]);
         exit(1);
     }
+
+    // Initialize logging
+    logging_init(LOG_INFO);
 
     // Set default values
     sim_t s;
@@ -196,7 +203,7 @@ int main(int argc, char *argv[])
     float *buffer = NULL;
     const void **buffer_ptr = NULL;
 
-    while ((result = getopt(argc, argv, "e:n:o:u:g:l:T:t:d:G:a:p:iI:U:b:v")) != -1)
+    while ((result = getopt(argc, argv, "e:n:o:u:g:l:T:t:d:G:a:p:iI:U:b:vDr:")) != -1)
     {
         switch (result)
         {
@@ -297,6 +304,14 @@ int main(int argc, char *argv[])
             s.opt.verb = true;
             break;
 
+        case 'D':
+            s.opt.auto_download = TRUE;
+            break;
+
+        case 'r':
+            strncpy(s.opt.rinex_cache_dir, optarg, sizeof(s.opt.rinex_cache_dir)-1);
+            break;
+
         case ':':
 
         case '?':
@@ -308,11 +323,31 @@ int main(int argc, char *argv[])
         }
     }
 
+    // Handle auto-download if enabled
+    if (s.opt.auto_download && s.opt.navfile[0] == 0) {
+        char cache_file[512];
+        const char *cache_dir = s.opt.rinex_cache_dir[0] ? s.opt.rinex_cache_dir : "rinex_cache";
+        snprintf(cache_file, sizeof(cache_file), "%s/galileo-latest.rnx", cache_dir);
+        
+        fprintf(stderr, "[*] Auto-downloading latest Galileo navigation file...\n");
+        fprintf(stderr, "[*] Cache directory: %s\n", cache_dir);
+        
+        if (download_latest_galileo_nav(cache_file, 7) == 0) {
+            strncpy(s.opt.navfile, cache_file, sizeof(s.opt.navfile)-1);
+            fprintf(stderr, "[+] Using navigation file: %s\n", s.opt.navfile);
+        } else {
+            fprintf(stderr, "ERROR: Failed to download navigation file\n");
+            fprintf(stderr, "       Please provide navigation file with -e flag\n");
+            exit(1);
+        }
+    }
+
     if (s.opt.navfile[0] == 0 && s.opt.tvfile[0] == 0)
     {
         std::cout << s.opt.navfile;
         std::cout << s.opt.tvfile;
         printf("ERROR: Galileo ephemeris/nav_msg file is not specified.\n");
+        printf("       Use -D flag to auto-download latest file, or -e to provide file path.\n");
         exit(1);
     }
 

@@ -1,4 +1,5 @@
 #include "../include/galileo-sdr.h"
+#include "../include/logging.h"
 
 /* Matches TOW and relevant ephemeris */
 int epoch_matcher(galtime_t obsTime, vector<ephem_t> eph, int ind2ex)
@@ -203,6 +204,37 @@ int readRinexV3(vector<ephem_t> eph_vector[MAX_SAT], ionoutc_t *ionoutc, char *f
         eph.cis = data[14];
         eph.toe.sec = (int)(data[11] + 0.5);
         eph.toe.week = (int)data[21];
+        
+        // GPS Week Rollover Correction (GPSWeek is 10-bit, rolls over every 1024 weeks ~19.7 years)
+        // GPS epoch started Jan 6, 1980. As of March 2026, GPS week is ~2410.
+        // The 10-bit GPS week in ephemeris rolls: 0-1023 (1980-1999), 0-1023 (1999-2019), 0-1023 (2019-2038)
+        // We need to determine which cycle we're in and adjust accordingly.
+        int current_gps_week = (int)data[21];  // 10-bit week from ephemeris
+        
+        // Estimate current GPS week from system time
+        time_t now = time(NULL);
+        time_t gps_epoch = 315964800;  // Jan 6, 1980 00:00:00 UTC
+        long seconds_since_epoch = now - gps_epoch;
+        int estimated_gps_week = (int)(seconds_since_epoch / (7 * 86400));
+        
+        // Determine which 1024-week cycle we should be in
+        int week_cycle = (estimated_gps_week / 1024) * 1024;
+        
+        // Adjust ephemeris week to current cycle
+        int adjusted_week = week_cycle + current_gps_week;
+        if (abs(estimated_gps_week - adjusted_week) > 512) {
+            // Wrong cycle, try adjacent cycle
+            adjusted_week = (week_cycle - 1024) + current_gps_week;
+            if (abs(estimated_gps_week - adjusted_week) > 512) {
+                adjusted_week = (week_cycle + 1024) + current_gps_week;
+            }
+        }
+        
+        log_debug("GPS week rollover: raw=%d adjusted=%d (cycle=%d, current=%d)", 
+                  current_gps_week, adjusted_week, week_cycle, estimated_gps_week);
+        
+        eph.toe.week = adjusted_week;  // Use corrected full GPS week
+        
         eph.iode = (unsigned char)data[3];
         eph.svhlth = (unsigned short)data[24];
         eph.ura = getGalileoUra(data[23]);
@@ -235,7 +267,7 @@ int readRinexV3(vector<ephem_t> eph_vector[MAX_SAT], ionoutc_t *ionoutc, char *f
     {
         if (eph_vector[i].size() == 0)
             continue;
-        cout << "Loaded " << eph_vector[i].size() << " records for " << i+1 << endl;
+        log_debug("Loaded %zu ephemeris records for satellite %d", eph_vector[i].size(), i+1);
     }
 
     return eph_count;

@@ -242,7 +242,8 @@ uint32_t data_extract_uint32_t(const vector<uint8_t> str_in, int offset_in, int 
 		for (i = 0; i < len_byte; i++)
 		{
 			str_buff_out[offset_index_out + i] |= (uint8_t)(str_buff[i] & mask2) >> nbit_offset_out;
-			str_buff_out[offset_index_out + i + 1] = (uint8_t)(str_buff[i] & mask1) << r_nbit_offset_out;
+			if (offset_index_out + i + 1 < 4)  // Bounds check to prevent buffer overflow
+				str_buff_out[offset_index_out + i + 1] = (uint8_t)(str_buff[i] & mask1) << r_nbit_offset_out;
 		}
 	}
 

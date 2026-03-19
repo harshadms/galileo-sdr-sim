@@ -301,6 +301,9 @@ void computeRange(range_t *rho, ephem_t eph, ionoutc_t *ionoutc, galtime_t g, do
     rho->tropo_delay = troposphericDelay(rho->azel, height);
 
     // Final Pseudorange: sum all delays (they INCREASE travel time)
+    // S04: Re-enable atmospheric corrections for more realistic simulation
+    // GNSS-SDR is configured to NOT apply atmospheric corrections when they're already in the pseudorange
+    // This provides a middle ground: cleaner simulation than all-geometric, more realistic than totally clean
     rho->range += rho->iono_delay + rho->tropo_delay;
     rho->g = g;
 

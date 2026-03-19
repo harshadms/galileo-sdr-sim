@@ -41,6 +41,8 @@ find_package(PkgConfig)
 find_package(UHD)
 find_package(Boost COMPONENTS thread system program_options REQUIRED)
 find_package(Curses REQUIRED)
+find_package(CURL REQUIRED)
+find_package(ZLIB REQUIRED)
 
 # The version in  ^^^^^  here is a minimum version.
 # To specify an exact version:
@@ -62,7 +64,7 @@ set(MATH_LIBRARIES ${MATH_LIBRARY} -lm)
 
 # need these include and link directories for the build
 include_directories(
-    ${UHD_INCLUDE_DIRS} ${CURSES_INCLUDE_DIRS} ${Boost_INCLUDE_DIR} ${ZeroMQ_LIBRARY} ${CMAKE_BINARY_DIR}/include ${CMAKE_BINARY_DIR}/src ${CMAKE_BINARY_DIR}/debug_scripts
+    ${UHD_INCLUDE_DIRS} ${CURSES_INCLUDE_DIRS} ${Boost_INCLUDE_DIR} ${ZeroMQ_LIBRARY} ${CMAKE_BINARY_DIR}/include ${CMAKE_BINARY_DIR}/src ${CMAKE_BINARY_DIR}/debug_scripts ${CURL_INCLUDE_DIRS} ${ZLIB_INCLUDE_DIRS}
 )
 
 ### Make the executable #######################################################
@@ -111,7 +113,7 @@ message(STATUS "****************************************************************
 pkg_check_modules(deps REQUIRED IMPORTED_TARGET glib-2.0)
 #target_link_libraries (galileo-sdr ${CMAKE_THREAD_LIBS_INIT})
 #target_link_libraries(galileo-sdr PkgConfig::deps)
-target_link_libraries (usrp_galileo ${UHD_LIBRARIES} ${Boost_LIBRARIES} ${CURSES_LIBRARIES} ${ZeroMQ_LIBRARY} ${CMAKE_THREAD_LIBS_INIT} PkgConfig::deps)
+target_link_libraries (usrp_galileo ${UHD_LIBRARIES} ${Boost_LIBRARIES} ${CURSES_LIBRARIES} ${ZeroMQ_LIBRARY} ${CMAKE_THREAD_LIBS_INIT} PkgConfig::deps ${CURL_LIBRARIES} ${ZLIB_LIBRARIES})
 
 ### Once it's built... ########################################################
 # Here, you would have commands to install your program.

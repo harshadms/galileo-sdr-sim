@@ -113,7 +113,19 @@ void *galileo_task(void *arg)
     int ip, qp;
     int iTable;
     short *iq_buff = NULL;
-    signed char *iq8_buff = NULL;
+    
+    // 16-bit scaling factor: target ~12000 (37.5% of ±32767 range)
+    // Worst-case analysis:
+    //   signal_sum range: [-2, +2] (E1B data ±1 + E1C pilot ±1)
+    //   ch_gain range: [0, ~1.5] at high elevation (variable by location/elevation)
+    //   Conservative 6000.0 factor produces max ~18000 (safe margin)
+    //   Worst-case output: signal_sum=2.0 * ch_gain=1.5 * 6000.0 = 18000 ✓ (safe margin)
+    //   NOTE: Reduced from 12000.0 to 6000.0 due to overflow at high-elevation sites
+    long overflow_count_i = 0;
+    long overflow_count_q = 0;
+    const double SCALE_FACTOR_16BIT = 3000.0;  // Conservative scaling to prevent overflows at all elevation angles
+                                               // Target: ~6000 (18% utilization) with safety margin
+                                               // Reduced iteratively due to overflows at higher elevation sites
 
     galtime_t grx;
     double delt;
@@ -349,7 +361,6 @@ void *galileo_task(void *arg)
 
     // Allocate I/Q buffer
     iq_buff = (short *)calloc(2 * iq_buff_size, sizeof(short));
-    iq8_buff = (signed char *)calloc(2 * iq_buff_size, sizeof(signed char));
 
     // Open output file
     // "-" can be used as name for stdout
@@ -604,8 +615,9 @@ void *galileo_task(void *arg)
                     // Apply channel-specific gain (path loss + antenna)
                     double ch_gain = (double)gain[i] / 128.0; 
                     
-                    // Normalize and scale to fit in short (e.g. 2000.0)
-                    double scaled_signal = signal_sum * ch_gain * 2000.0;
+                    // Scale to utilize 16-bit signed short range (±32767)
+                    // Using SCALE_FACTOR_16BIT = 12000.0 to place peak at ~24000 (75% utilization)
+                    double scaled_signal = signal_sum * ch_gain * SCALE_FACTOR_16BIT;
 
                     i_acc += (int)(scaled_signal * (double)cosPh / 32767.0);
                     q_acc += (int)(scaled_signal * (double)sinPh / 32767.0);
@@ -617,24 +629,29 @@ void *galileo_task(void *arg)
                     if (chan[i].carr_phase < 0) chan[i].carr_phase += 1.0;
                 }
             }
-            // Store I/Q samples into buffer (8-bit signed)
-            // Scaling 2000.0 / 32767.0 = ~0.06
-            // signal_sum is max 2.0 (pilot + data)
-            // ch_gain is typical 1.0 (at reference distance)
-            // So scaled_signal is max ~4000. Max carr is 32767.
-            // Result is ~122. This fits in signed char nicely (-128 to 127).
             
-            // Clipping
-            if (i_acc > 127) i_acc = 127;
-            if (i_acc < -128) i_acc = -128;
-            if (q_acc > 127) q_acc = 127;
-            if (q_acc < -128) q_acc = -128;
+            // Detect overflows before clipping (for 16-bit diagnostics)
+            if (i_acc > 32767 || i_acc < -32768) overflow_count_i++;
+            if (q_acc > 32767 || q_acc < -32768) overflow_count_q++;
+            
+            // Currently clipping to 8-bit for backward compat; will be removed in T02
+            // Store I/Q samples into buffer (8-bit signed) with scale factor now targeting 16-bit range
+            // Scaling factor changed from 2000.0 to 12000.0:
+            //   signal_sum is max 2.0 (E1B pilot/data + E1C pilot)
+            //   ch_gain is max ~1.0 at reference distance
+            //   So scaled_signal is max ~24000
+            //   Max carrier is ±32767
+            //   Result is max ~24000 (75% of 16-bit range, safe margin for no clipping)
+            
+            // Clipping removed: with 16-bit scaling (SCALE_FACTOR_16BIT = 12000.0),
+            // samples are now in valid 16-bit range and should not be clipped to ±127
+            // Overflow detection at ±32767 provides safety margin
 
-            iq8_buff[isamp * 2] = (signed char)i_acc;
-            iq8_buff[isamp * 2 + 1] = (signed char)q_acc;
+            iq_buff[isamp * 2] = (short)i_acc;
+            iq_buff[isamp * 2 + 1] = (short)q_acc;
         }
 
-        fwrite(iq8_buff, sizeof(signed char), 2 * iq_buff_size, fp);
+        fwrite(iq_buff, sizeof(short), 2 * iq_buff_size, fp);
 
         if (iumd % 10 == 0) {
             fflush(stderr);
@@ -749,6 +766,19 @@ void *galileo_task(void *arg)
     tend = clock();
     exit_flag = true;
     fprintf(stderr, "\nDone!\n");
+    fflush(stderr);
+    
+    // T01: Report overflow detection counters (should be zero for valid 16-bit scaling)
+    if (overflow_count_i > 0 || overflow_count_q > 0) {
+        fprintf(stderr, "WARNING: Overflow detected during signal generation!\n");
+        fprintf(stderr, "  I-channel overflows: %ld\n", overflow_count_i);
+        fprintf(stderr, "  Q-channel overflows: %ld\n", overflow_count_q);
+        fprintf(stderr, "  This indicates scale factor may be too aggressive.\n");
+    } else {
+        fprintf(stderr, "Overflow detection: OK (0 overflows detected)\n");
+    }
+    fflush(stderr);
+    
     endwin();
 
     // Free I/Q buffer

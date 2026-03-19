@@ -78,24 +78,19 @@ int allocateChannel(channel_t *chan,
                         // sm->insert({chan[i].prn, i});
 
                         // C/A code generation
-                        fprintf(stderr, "DEBUG: Generating codes for PRN %d\n", chan[i].prn);
                         if (chan[i].ca_E1B == NULL)
                             chan[i].ca_E1B = (short *)calloc(2 * CA_SEQ_LEN_E1, sizeof(short));
                         codegen_E1B(chan[i].ca_E1B, chan[i].prn);
-                        fprintf(stderr, "DEBUG: Generated E1B\n");
 
                         if (chan[i].ca_E1C == NULL)
                             chan[i].ca_E1C = (short *)calloc(2 * CA_SEQ_LEN_E1, sizeof(short));
                         codegen_E1C(chan[i].ca_E1C, chan[i].prn);
-                        fprintf(stderr, "DEBUG: Generated E1C\n");
 
                         // Generate navigation message
                         //generateNavMsg(grx, &chan[i], advance_fptr);
-                        fprintf(stderr, "DEBUG: Generating INavMsg for PRN %d\n", chan[i].prn);
                         if (chan[i].page == NULL)
                             chan[i].page = (int *)calloc(N_PAGE, sizeof(int));
                         generateINavMsg(grx, &chan[i], &eph, &ionoutc);
-                        fprintf(stderr, "DEBUG: Generated INavMsg\n");
 
                         // Initialize pseudorange
                         computeRange(&rho, eph, &ionoutc, grx, xyz, chan[i].prn);
