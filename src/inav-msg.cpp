@@ -375,6 +375,16 @@ void generate_page(galtime_t g, ephem_t *eph, ionoutc_t *ionoutc, int *even_page
 
 		break;
 	
+	case 10:
+		// Word type 10: almanac half empty; GGTO A0G = A1G = 0 (one clock in this simulator)
+		encode_int_to_bits(page, &offset, 10, 8);
+		encode_int_to_bits(page, &offset, 0, 80);
+		encode_int_to_bits(page, &offset, 0, 16);	// A0G
+		encode_int_to_bits(page, &offset, 0, 12);	// A1G
+		encode_int_to_bits(page, &offset, TOW / 3600, 8);	// t0G
+		encode_int_to_bits(page, &offset, g.week, 6);	// WN0G
+		break;
+
 	default:
 		// Word type 63 - Even page (dummy frame)
 		encode_int_to_bits(page, &offset, 63, 8);
