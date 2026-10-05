@@ -382,7 +382,7 @@ void *galileo_task(void *arg)
     ////////////////////////////////////////////////////////////
 
     dt = 0.1;
-    grx = incGalTime(grx, dt);
+    // grx stays at g0 for allocation, as in gps-sdr-sim; the loop advances it once.
 
     init_channel(chan, allocatedSat);
 
@@ -506,8 +506,11 @@ void *galileo_task(void *arg)
                 {
                     chan[i].set_code_phase = false;
 
-                    // Absolute Time of Transmission
-                    double tx_time = grx.sec - (rho.range / SPEED_OF_LIGHT);
+                    // Absolute Time of Transmission, for the first sample of this block (grx - dt)
+                    galtime_t g_start = incGalTime(grx, -dt);
+                    range_t rho_start;
+                    computeRange(&rho_start, eph, &iono, g_start, xyz[iumd].data(), chan[i].prn);
+                    double tx_time = g_start.sec - (rho_start.range / SPEED_OF_LIGHT);
                     
                     // Page boundary (2 seconds)
                     long page_idx = (long)(tx_time / 2.0);
