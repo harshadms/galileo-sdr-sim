@@ -609,8 +609,8 @@ void *galileo_task(void *arg)
                     int E1B_subchip = chan[i].ca_E1B[icode];
                     int E1C_subchip = chan[i].ca_E1C[icode];
 
-                    // Galileo E1 signal is (E1B_data * E1B_subchip + E1C_pilot * E1C_subchip)
-                    double signal_sum = (double)(E1B_subchip * ch_databit[i] + E1C_subchip * ch_secCode[i]);
+                    // Galileo E1 OS composite (OS SIS ICD): E1B_data * E1B_subchip - E1C_pilot * E1C_subchip
+                    double signal_sum = (double)(E1B_subchip * ch_databit[i] - E1C_subchip * ch_secCode[i]);
 
                     // Apply channel-specific gain (path loss + antenna)
                     double ch_gain = (double)gain[i] / 128.0; 
