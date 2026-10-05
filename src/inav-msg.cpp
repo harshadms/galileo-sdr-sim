@@ -281,7 +281,7 @@ void generate_page(galtime_t g, ephem_t *eph, ionoutc_t *ionoutc, int *even_page
 		encode_int_to_bits(page, &offset, IntValue, 16);
 		// User range accuracy index - 32767 for URA 15 SISA
 		IntValue = UnscaleInt(3.12, 0);
-		encode_int_to_bits(page, &offset, 32767, 8);
+		encode_int_to_bits(page, &offset, eph->ura, 8);
 		break;
 	
 	case 4:
