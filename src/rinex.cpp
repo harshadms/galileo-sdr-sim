@@ -99,6 +99,22 @@ int readContentsData(char *str, double *data, datetime_t *time, bool read_time)
 }
 
 // https://server.gage.upc.edu/gLAB/HTML/GALILEO_Navigation_Rinex_v3.04.html
+/* Some daily BRDC files carry no TIME SYSTEM CORR lines at all. Without a GAUT line, word type 6 would
+ * broadcast whatever the GST-UTC fields hold; instead describe GST = UTC + dtls exactly (A0 = A1 = 0), with
+ * the reference time at the hour of the scenario start, which is true to a few nanoseconds. */
+void fillMissingUtcParams(ionoutc_t *ionoutc, galtime_t g0)
+{
+    if (ionoutc->tot >= 0)
+        return;
+    ionoutc->A0 = 0.0;
+    ionoutc->A1 = 0.0;
+    ionoutc->A2 = 0.0;
+    ionoutc->wnt = g0.week;
+    ionoutc->tot = ((int)g0.sec / 3600) * 3600;
+    fprintf(stderr, "No GAUT line in the navigation file: broadcasting GST-UTC A0 = A1 = 0, tot %d, week %d.\n",
+            ionoutc->tot, ionoutc->wnt);
+}
+
 int readRinexV3(vector<ephem_t> eph_vector[MAX_SAT], ionoutc_t *ionoutc, char *fname)
 {
     int eph_count = 0;
@@ -108,6 +124,9 @@ int readRinexV3(vector<ephem_t> eph_vector[MAX_SAT], ionoutc_t *ionoutc, char *f
         perror("Error opening file");
         return (-1);
     }
+
+    // GST-UTC parameters not read yet: tot < 0 marks them missing (see fillMissingUtcParams)
+    ionoutc->tot = -1;
 
     // Default leap seconds (GST-UTC) if not in header
     ionoutc->dtls = 18;

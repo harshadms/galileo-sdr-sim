@@ -166,7 +166,7 @@ void *galileo_task(void *arg)
 
     int timeoverwrite = FALSE; // Overwrite the TOC and TOE in the RINEX file
 
-    ionoutc_t iono;
+    ionoutc_t iono = {};   // every field defined, whatever the RINEX header carries
 
     ////////////////////////////////////////////////////////////
     // Read options
@@ -309,6 +309,7 @@ void *galileo_task(void *arg)
 
     gal2date(&gmax, &tmax);
     set_scenario_start_time(&g0, gmin, gmax, &t0, &tmin, &tmax, timeoverwrite, &iono, neph, eph_vector);
+    fillMissingUtcParams(&iono, g0);
    
     datetime_t tl;
     gal2date(&g0, &tl);
