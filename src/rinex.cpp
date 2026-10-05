@@ -111,6 +111,12 @@ int readRinexV3(vector<ephem_t> eph_vector[MAX_SAT], ionoutc_t *ionoutc, char *f
 
     // Default leap seconds (GST-UTC) if not in header
     ionoutc->dtls = 18;
+    // Leap-second event defaults: the last one, end of 2016, GPS week 1929 (same value mod 256 in
+    // Galileo weeks), day 7, 18 s after it, as gps-sdr-sim also assumes. A RINEX 3 LEAP SECONDS line
+    // with all four fields overrides them below.
+    ionoutc->dtlsf = 18;
+    ionoutc->wnlsf = 1929;
+    ionoutc->dn = 7;
 
     char str[MAX_CHAR];
     // Parse header
@@ -138,17 +144,17 @@ int readRinexV3(vector<ephem_t> eph_vector[MAX_SAT], ionoutc_t *ionoutc, char *f
             int data1, data2;
             sscanf(str + 22, "%lf %d %d", &(ionoutc->A1), &data1, &data2);
             ionoutc->A2 = 0.0;
-            ionoutc->tot = (unsigned char)(data1 >> 12);
-            ionoutc->wnt = (short)data2 >> 4;
-            ionoutc->wnlsf = (short)data2;
+            ionoutc->tot = data1;    // seconds of week; word type 6 sends tot/3600
+            ionoutc->wnt = data2;    // week; word type 6 sends it modulo 256
         }
 
         // Leap seconds
         if (strncmp(str + 60, "LEAP SECONDS", 12) == 0)
         {
-            int leap;
-            if (sscanf(str, "%d", &leap) == 1)
-                ionoutc->dtls = leap;
+            int leap, lsf, wn, day;
+            int got = sscanf(str, "%d %d %d %d", &leap, &lsf, &wn, &day);
+            if (got >= 1) { ionoutc->dtls = leap; ionoutc->dtlsf = leap; }
+            if (got >= 4) { ionoutc->dtlsf = lsf; ionoutc->wnlsf = wn; ionoutc->dn = day; }
         }
     }
 
