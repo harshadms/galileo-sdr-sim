@@ -263,6 +263,11 @@ void computeRange(range_t *rho, ephem_t eph, ionoutc_t *ionoutc, galtime_t g, do
     subVect(los, pos, xyz);
     tau = normVect(los) / SPEED_OF_LIGHT;
 
+    // Satellite motion during the light time: position at transmission, as gps-sdr-sim does.
+    pos[0] -= vel[0] * tau;
+    pos[1] -= vel[1] * tau;
+    pos[2] -= vel[2] * tau;
+
     // Sagnac effect correction (Earth rotation during signal propagation tau)
     // The ECEF frame rotates CCW with the Earth. To express the satellite's position
     // at the time of transmission in the ECEF frame at the time of reception, we must
