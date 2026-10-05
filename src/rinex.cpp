@@ -124,6 +124,7 @@ int readRinexV3(vector<ephem_t> eph_vector[MAX_SAT], ionoutc_t *ionoutc, char *f
         {
             convertD2E(str);
             sscanf(str + 4, "%lf %lf %lf", &(ionoutc->ai0), &(ionoutc->ai1), &(ionoutc->ai2));
+            ionoutc->vflg = TRUE;   // NeQuick-G coefficients present: use them, as word type 5 says
         }
 
         // Time corrections GAUT - GAL to UTC
