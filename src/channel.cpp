@@ -73,6 +73,7 @@ int allocateChannel(channel_t *chan,
                         chan[i].azel[0] = azel[0];
                         chan[i].azel[1] = azel[1];
                         chan[i].g0 = grx;
+                        chan[i].set_code_phase = true;
 
                         // Insert latest channel assignment to the map
                         // sm->insert({chan[i].prn, i});
