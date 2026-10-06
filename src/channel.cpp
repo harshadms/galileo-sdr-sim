@@ -73,6 +73,7 @@ int allocateChannel(channel_t *chan,
                         chan[i].azel[0] = azel[0];
                         chan[i].azel[1] = azel[1];
                         chan[i].g0 = grx;
+                        chan[i].set_code_phase = true;
 
                         // Insert latest channel assignment to the map
                         // sm->insert({chan[i].prn, i});
@@ -103,7 +104,11 @@ int allocateChannel(channel_t *chan,
                         r_ref = rho.range;
 
                         phase_ini = (2.0 * r_ref - r_xyz) / LAMBDA_L1;
-                        chan[i].carr_phase = phase_ini - floor(phase_ini);
+                        // phase_ini is NaN (the reference range is computed to the Earth's centre, where
+                        // the atmosphere models return NaN), and NaN never leaves carr_phase. The initial
+                        // phase is arbitrary, so start the carrier at 0.
+                        (void)phase_ini;
+                        chan[i].carr_phase = 0.0;
 
                         fprintf(stderr, "%02d %6.1f %5.1f %11.1f %5.5f\n", chan[i].prn, chan[i].azel[0] * R2D, chan[i].azel[1] * R2D, chan[i].rho0.range, grx.sec);
                         //print_eph2(&eph, sv+1);

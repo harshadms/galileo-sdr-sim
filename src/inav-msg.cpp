@@ -201,7 +201,7 @@ void generate_page(galtime_t g, ephem_t *eph, ionoutc_t *ionoutc, int *even_page
 		encode_int_to_bits(page, &offset, 2, 2); // Word type 0
 		encode_int_to_bits(page, &offset, 0, 88);
 		// WN
-		encode_int_to_bits(page, &offset, g.week - 1024, 12);
+		encode_int_to_bits(page, &offset, g.week, 12);
 		// TOW
 		encode_int_to_bits(page, &offset, TOW, 20);
 		break;
@@ -281,7 +281,7 @@ void generate_page(galtime_t g, ephem_t *eph, ionoutc_t *ionoutc, int *even_page
 		encode_int_to_bits(page, &offset, IntValue, 16);
 		// User range accuracy index - 32767 for URA 15 SISA
 		IntValue = UnscaleInt(3.12, 0);
-		encode_int_to_bits(page, &offset, 32767, 8);
+		encode_int_to_bits(page, &offset, eph->ura, 8);
 		break;
 	
 	case 4:
@@ -343,7 +343,7 @@ void generate_page(galtime_t g, ephem_t *eph, ionoutc_t *ionoutc, int *even_page
 		encode_int_to_bits(page, &offset, eph->svhlth >> 5, 1);	// E5b DVS
 		encode_int_to_bits(page, &offset, eph->svhlth, 1);		// E1B DVS
 		// WN
-		encode_int_to_bits(page, &offset, g.week - 1024, 12);
+		encode_int_to_bits(page, &offset, g.week, 12);
 		// TOW
 		encode_int_to_bits(page, &offset, TOW, 20);
 		// Spare
@@ -375,6 +375,16 @@ void generate_page(galtime_t g, ephem_t *eph, ionoutc_t *ionoutc, int *even_page
 
 		break;
 	
+	case 10:
+		// Word type 10: almanac half empty; GGTO A0G = A1G = 0 (one clock in this simulator)
+		encode_int_to_bits(page, &offset, 10, 8);
+		encode_int_to_bits(page, &offset, 0, 80);
+		encode_int_to_bits(page, &offset, 0, 16);	// A0G
+		encode_int_to_bits(page, &offset, 0, 12);	// A1G
+		encode_int_to_bits(page, &offset, TOW / 3600, 8);	// t0G
+		encode_int_to_bits(page, &offset, g.week, 6);	// WN0G
+		break;
+
 	default:
 		// Word type 63 - Even page (dummy frame)
 		encode_int_to_bits(page, &offset, 63, 8);

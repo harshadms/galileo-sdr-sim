@@ -99,6 +99,22 @@ int readContentsData(char *str, double *data, datetime_t *time, bool read_time)
 }
 
 // https://server.gage.upc.edu/gLAB/HTML/GALILEO_Navigation_Rinex_v3.04.html
+/* Some daily BRDC files carry no TIME SYSTEM CORR lines at all. Without a GAUT line, word type 6 would
+ * broadcast whatever the GST-UTC fields hold; instead describe GST = UTC + dtls exactly (A0 = A1 = 0), with
+ * the reference time at the hour of the scenario start, which is true to a few nanoseconds. */
+void fillMissingUtcParams(ionoutc_t *ionoutc, galtime_t g0)
+{
+    if (ionoutc->tot >= 0)
+        return;
+    ionoutc->A0 = 0.0;
+    ionoutc->A1 = 0.0;
+    ionoutc->A2 = 0.0;
+    ionoutc->wnt = g0.week;
+    ionoutc->tot = ((int)g0.sec / 3600) * 3600;
+    fprintf(stderr, "No GAUT line in the navigation file: broadcasting GST-UTC A0 = A1 = 0, tot %d, week %d.\n",
+            ionoutc->tot, ionoutc->wnt);
+}
+
 int readRinexV3(vector<ephem_t> eph_vector[MAX_SAT], ionoutc_t *ionoutc, char *fname)
 {
     int eph_count = 0;
@@ -109,8 +125,17 @@ int readRinexV3(vector<ephem_t> eph_vector[MAX_SAT], ionoutc_t *ionoutc, char *f
         return (-1);
     }
 
+    // GST-UTC parameters not read yet: tot < 0 marks them missing (see fillMissingUtcParams)
+    ionoutc->tot = -1;
+
     // Default leap seconds (GST-UTC) if not in header
     ionoutc->dtls = 18;
+    // Leap-second event defaults: the last one, end of 2016, GPS week 1929 (same value mod 256 in
+    // Galileo weeks), day 7, 18 s after it, as gps-sdr-sim also assumes. A RINEX 3 LEAP SECONDS line
+    // with all four fields overrides them below.
+    ionoutc->dtlsf = 18;
+    ionoutc->wnlsf = 1929;
+    ionoutc->dn = 7;
 
     char str[MAX_CHAR];
     // Parse header
@@ -124,6 +149,7 @@ int readRinexV3(vector<ephem_t> eph_vector[MAX_SAT], ionoutc_t *ionoutc, char *f
         {
             convertD2E(str);
             sscanf(str + 4, "%lf %lf %lf", &(ionoutc->ai0), &(ionoutc->ai1), &(ionoutc->ai2));
+            ionoutc->vflg = TRUE;   // NeQuick-G coefficients present: use them, as word type 5 says
         }
 
         // Time corrections GAUT - GAL to UTC
@@ -137,17 +163,17 @@ int readRinexV3(vector<ephem_t> eph_vector[MAX_SAT], ionoutc_t *ionoutc, char *f
             int data1, data2;
             sscanf(str + 22, "%lf %d %d", &(ionoutc->A1), &data1, &data2);
             ionoutc->A2 = 0.0;
-            ionoutc->tot = (unsigned char)(data1 >> 12);
-            ionoutc->wnt = (short)data2 >> 4;
-            ionoutc->wnlsf = (short)data2;
+            ionoutc->tot = data1;    // seconds of week; word type 6 sends tot/3600
+            ionoutc->wnt = data2;    // week; word type 6 sends it modulo 256
         }
 
         // Leap seconds
         if (strncmp(str + 60, "LEAP SECONDS", 12) == 0)
         {
-            int leap;
-            if (sscanf(str, "%d", &leap) == 1)
-                ionoutc->dtls = leap;
+            int leap, lsf, wn, day;
+            int got = sscanf(str, "%d %d %d %d", &leap, &lsf, &wn, &day);
+            if (got >= 1) { ionoutc->dtls = leap; ionoutc->dtlsf = leap; }
+            if (got >= 4) { ionoutc->dtlsf = lsf; ionoutc->wnlsf = wn; ionoutc->dn = day; }
         }
     }
 

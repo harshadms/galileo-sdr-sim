@@ -62,7 +62,7 @@ double ionosphericDelay(const ionoutc_t *ionoutc, galtime_t g, double *user_llh,
 
     double TEC = NeQuickG(userLLH, satLLH, dataInput, invalidFlag);
     double rangeError = TEC * 40.3 / pow(freq, 2);
-    iono_delay = rangeError / SPEED_OF_LIGHT_M_S;
+    iono_delay = rangeError * 1e16;   // TEC is in TECU; metres, as computeRange adds it
     if (invalidFlag) //if the model reached invalid data for calculation
         iono_delay = ionosphericDelay(user_llh, azel); //calc iono using obliquity model
     return (iono_delay);

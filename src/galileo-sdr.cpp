@@ -166,7 +166,7 @@ void *galileo_task(void *arg)
 
     int timeoverwrite = FALSE; // Overwrite the TOC and TOE in the RINEX file
 
-    ionoutc_t iono;
+    ionoutc_t iono = {};   // every field defined, whatever the RINEX header carries
 
     ////////////////////////////////////////////////////////////
     // Read options
@@ -309,6 +309,7 @@ void *galileo_task(void *arg)
 
     gal2date(&gmax, &tmax);
     set_scenario_start_time(&g0, gmin, gmax, &t0, &tmin, &tmax, timeoverwrite, &iono, neph, eph_vector);
+    fillMissingUtcParams(&iono, g0);
    
     datetime_t tl;
     gal2date(&g0, &tl);
@@ -382,7 +383,7 @@ void *galileo_task(void *arg)
     ////////////////////////////////////////////////////////////
 
     dt = 0.1;
-    grx = incGalTime(grx, dt);
+    // grx stays at g0 for allocation, as in gps-sdr-sim; the loop advances it once.
 
     init_channel(chan, allocatedSat);
 
@@ -506,8 +507,11 @@ void *galileo_task(void *arg)
                 {
                     chan[i].set_code_phase = false;
 
-                    // Absolute Time of Transmission
-                    double tx_time = grx.sec - (rho.range / SPEED_OF_LIGHT);
+                    // Absolute Time of Transmission, for the first sample of this block (grx - dt)
+                    galtime_t g_start = incGalTime(grx, -dt);
+                    range_t rho_start;
+                    computeRange(&rho_start, eph, &iono, g_start, xyz[iumd].data(), chan[i].prn);
+                    double tx_time = g_start.sec - (rho_start.range / SPEED_OF_LIGHT);
                     
                     // Page boundary (2 seconds)
                     long page_idx = (long)(tx_time / 2.0);
@@ -609,8 +613,8 @@ void *galileo_task(void *arg)
                     int E1B_subchip = chan[i].ca_E1B[icode];
                     int E1C_subchip = chan[i].ca_E1C[icode];
 
-                    // Galileo E1 signal is (E1B_data * E1B_subchip + E1C_pilot * E1C_subchip)
-                    double signal_sum = (double)(E1B_subchip * ch_databit[i] + E1C_subchip * ch_secCode[i]);
+                    // Galileo E1 OS composite (OS SIS ICD): E1B_data * E1B_subchip - E1C_pilot * E1C_subchip
+                    double signal_sum = (double)(E1B_subchip * ch_databit[i] - E1C_subchip * ch_secCode[i]);
 
                     // Apply channel-specific gain (path loss + antenna)
                     double ch_gain = (double)gain[i] / 128.0; 

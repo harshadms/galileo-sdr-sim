@@ -176,6 +176,7 @@ int allocateChannel(channel_t *chan,
 /*! \brief Rinex and ephemeris function - rinex.cpp */
 //int epoch_matcher(double obsTime, vector<ephem_t> eph, int index);
 int readRinexV3(vector<ephem_t> eph_vector[MAX_SAT], ionoutc_t *ionoutc, char *fname);
+void fillMissingUtcParams(ionoutc_t *ionoutc, galtime_t g0);
 int readContentsData(char *str, double *data, datetime_t *time, bool read_time);
 unsigned char getGalileoUra(double data);
 void convertD2E(char *str);
